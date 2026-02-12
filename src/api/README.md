@@ -212,4 +212,6 @@ This layer integrates with the backend public content API:
 
 ## Next Steps
 
-The next feature (FE-106) will migrate core public pages (home, about, advantages, core-services) to use this data access layer for config-driven rendering.
+This data access layer is now complete and integrated across all public pages. For comprehensive documentation on frontend rendering patterns, configuration contracts, and migration guidelines, see:
+
+**[Frontend Rendering Configuration Guide](../FRONTEND_RENDERING.md)** - Complete reference for config-driven rendering architecture, type safety, graceful degradation, and troubleshooting.

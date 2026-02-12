@@ -1,3 +1,29 @@
+/**
+ * DEPRECATION NOTICE (as of FE-108):
+ *
+ * Most keys in this file are OBSOLETE and retained only for backward compatibility.
+ * All public page content is now managed via backend CMS and fetched using:
+ * - usePublicContent hook from @/hooks/usePublicContent
+ * - Page configs from backend /public/content/{pageKey} API
+ *
+ * Deprecated key groups (DO NOT USE in new code):
+ * - hero.* → Replaced by 'home' pageKey config
+ * - about.* → Replaced by 'home' and 'about' pageKey configs
+ * - advantages.* → Replaced by 'home' and 'advantages' pageKey configs
+ * - coreServices.* → Replaced by 'home' and 'core-services' pageKey configs
+ * - coreServicesPage.* → Replaced by 'core-services' pageKey config
+ * - advantagesPage.* → Replaced by 'advantages' pageKey config
+ * - caseListPage.* → Replaced by 'cases' pageKey config
+ * - expertTeamPage.* → Replaced by 'experts' pageKey config
+ * - aboutPage.* → Replaced by 'about' pageKey config
+ * - contactPage.* → Replaced by 'contact' pageKey config
+ * - footer.* → Replaced by 'global' pageKey config (partially)
+ *
+ * Active keys (still in use):
+ * - nav.* → May be used by legacy components (migration to 'global' config in progress)
+ *
+ * See src/FRONTEND_RENDERING.md for migration guide and usage patterns.
+ */
 
 export const common = {
   nav: {
@@ -9,10 +35,12 @@ export const common = {
     expertTeam: '专家团队',
     contact: '联系我们'
   },
+  // DEPRECATED: Use 'home' pageKey config from usePublicContent hook
   hero: {
     title: '印迹法规咨询',
     subtitle: '企业内设型注册法规团队'
   },
+  // DEPRECATED: Use 'home' and 'about' pageKey configs from usePublicContent hook
   about: {
     title: '关于我们',
     description: '印迹法规咨询公司是一家专注于食品与生物技术领域的专业法规注册咨询公司，核心业务涵盖“三新食品”、转基因作物和饲料注册。我们与中国监管机构保持密切沟通，并携手国际合作伙伴，开展中国、美国和欧盟的法规注册项目。',
@@ -20,6 +48,7 @@ export const common = {
     description3: '我们的客户涵盖跨国企业、初创公司和科研机构。我们致力于将复杂的监管要求精准地转化为客户的竞争优势。',
     button: '立即联系我们'
   },
+  // DEPRECATED: Use 'home' and 'advantages' pageKey configs from usePublicContent hook
   advantages: {
     title: '我们的优势',
     card1: {
@@ -43,6 +72,7 @@ export const common = {
       description: '全过程透明推进，必要时与监管机构建立有效沟通。',
     },
   },
+  // DEPRECATED: Use 'home' and 'core-services' pageKey configs from usePublicContent hook
   coreServices: {
     title: '核心服务',
     service1: {
@@ -61,6 +91,7 @@ export const common = {
       link: '了解更多 >>'
     }
   },
+  // DEPRECATED: Use 'core-services' pageKey config from usePublicContent hook
   coreServicesPage: {
     hero: {
       label: '服务领域',
@@ -79,6 +110,7 @@ export const common = {
       description: '我们为客户提供饲料原料和饲料添加剂的法规注册申报服务，服务内容包括产品注册申报策略制定、菌株构建评估、安全性试验规划与审评沟通支持，以稳步推进项目落地。',
     },
   },
+  // DEPRECATED: Use 'advantages' pageKey config from usePublicContent hook
   advantagesPage: {
     hero: {
       label: '我们的优势',
@@ -90,6 +122,7 @@ export const common = {
     block4: { title: '过程透明，主动对接监管', description: '全过程透明推进，必要时与监管机构建立有效沟通。' },
     block5: { title: '化繁为简，掌控复杂合规', description: '基于对政策背景、审评逻辑及中国特有监管语境的把握，我们能帮助客户精准定位关键决策点，在复杂环境中做出清晰判断，并稳健推动项目进程。' },
   },
+  // DEPRECATED: Use 'cases' pageKey config from usePublicContent hook
   caseListPage: {
     hero: {
       label: '案例清单',
@@ -112,6 +145,7 @@ export const common = {
       items: '在没有批准先例的情况下，快速完成法规批准。\n常规转基因植物安全证书需7年左右，该项目仅用一半不到的时间即获得批准。',
     },
   },
+  // DEPRECATED: Use 'experts' pageKey config from usePublicContent hook
   expertTeamPage: {
     hero: {
       label: '专家介绍',
@@ -131,6 +165,7 @@ export const common = {
       },
     },
   },
+  // DEPRECATED: Use 'about' pageKey config from usePublicContent hook
   aboutPage: {
     hero: {
       label: '关于我们',
@@ -147,6 +182,7 @@ export const common = {
       description: '我们帮助客户获得了多项首例产品的批准，并为客户提供长期的法规申报战略支持。我们始终在关键节点交付成果，赢得信赖。',
     },
   },
+  // DEPRECATED: Use 'contact' pageKey config from usePublicContent hook
   contactPage: {
     hero: {
       title: '联系我们',
@@ -168,6 +204,8 @@ export const common = {
       address: '地址：北京市昌平区回龙观西大街9号院3号楼1层115',
     },
   },
+  // DEPRECATED: Use 'global' pageKey config from usePublicContent hook (partially)
+  // Note: Some footer content may still be in transition to config-driven rendering
   footer: {
     address: '地址：北京市昌平区回龙观西大街9号院3号楼1层115',
     phone: '电话：+86 159 1076 9614',

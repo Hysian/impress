@@ -1,3 +1,29 @@
+/**
+ * DEPRECATION NOTICE (as of FE-108):
+ *
+ * Most keys in this file are OBSOLETE and retained only for backward compatibility.
+ * All public page content is now managed via backend CMS and fetched using:
+ * - usePublicContent hook from @/hooks/usePublicContent
+ * - Page configs from backend /public/content/{pageKey} API
+ *
+ * Deprecated key groups (DO NOT USE in new code):
+ * - hero.* → Replaced by 'home' pageKey config
+ * - about.* → Replaced by 'home' and 'about' pageKey configs
+ * - advantages.* → Replaced by 'home' and 'advantages' pageKey configs
+ * - coreServices.* → Replaced by 'home' and 'core-services' pageKey configs
+ * - coreServicesPage.* → Replaced by 'core-services' pageKey config
+ * - advantagesPage.* → Replaced by 'advantages' pageKey config
+ * - caseListPage.* → Replaced by 'cases' pageKey config
+ * - expertTeamPage.* → Replaced by 'experts' pageKey config
+ * - aboutPage.* → Replaced by 'about' pageKey config
+ * - contactPage.* → Replaced by 'contact' pageKey config
+ * - footer.* → Replaced by 'global' pageKey config (partially)
+ *
+ * Active keys (still in use):
+ * - nav.* → May be used by legacy components (migration to 'global' config in progress)
+ *
+ * See src/FRONTEND_RENDERING.md for migration guide and usage patterns.
+ */
 
 export const common = {
   nav: {
@@ -9,10 +35,12 @@ export const common = {
     expertTeam: 'Expert Team',
     contact: 'Contact Us'
   },
+  // DEPRECATED: Use 'home' pageKey config from usePublicContent hook
   hero: {
     title: 'Blotting Consultancy',
     subtitle: 'Enterprise Internal Regulatory Team'
   },
+  // DEPRECATED: Use 'home' and 'about' pageKey configs from usePublicContent hook
   about: {
     title: 'About Us',
     description: 'Blotting Consultancy is a specialized regulatory consulting firm focused on novel foods regulated under China’s “Three New Foods” framework, genetically modified（GM）crops, and feed products，with particular expertise in the China’s regulatory system. We work closely with Chinese authorities and collaborate with trusted international partners to support regulatory submissions and approvals across China, the United States, and the European Union.',
@@ -20,6 +48,7 @@ export const common = {
     description3: 'Our clients include multinational companies, innovative startups, and research institutions. We are committed to translating complex regulatory requirements into clear, actionable strategies that become a competitive advantage for our clients.',
     button: 'Contact Us Now'
   },
+  // DEPRECATED: Use 'home' and 'advantages' pageKey configs from usePublicContent hook
   advantages: {
     title: 'Our Advantages',
     card1: {
@@ -43,6 +72,7 @@ export const common = {
       description: 'We ensure transparency at every step and support constructive engagement with authorities when needed.',
     },
   },
+  // DEPRECATED: Use 'home' and 'core-services' pageKey configs from usePublicContent hook
   coreServices: {
     title: 'Core Services',
     service1: {
@@ -60,6 +90,7 @@ export const common = {
       description: 'We support MARA submissions for GMM-derived feed materials, feed additives, and veterinary-active substances, including product registration strategies, evaluation of strain development, safety study planning, and support for regulatory review communications to ensure steady and effective project execution..',
     }
   },
+  // DEPRECATED: Use 'core-services' pageKey config from usePublicContent hook
   coreServicesPage: {
     hero: {
       label: 'Service Areas',
@@ -78,6 +109,7 @@ export const common = {
       description: 'We support clients with the regulatory registration of feed materials and feed additives, providing product registration strategies, evaluation of strain development, safety study planning, and review communication support to ensure steady and successful project implementation.',
     },
   },
+  // DEPRECATED: Use 'advantages' pageKey config from usePublicContent hook
   advantagesPage: {
     hero: {
       label: 'Our Advantages',
@@ -87,8 +119,9 @@ export const common = {
     block2: { title: 'Industry Insight, Aligned Communication', description: 'With over 20 years of experience in multinational regulatory affairs, we align smoothly with multinational clients through shared regulatory language and operating rhythms.' },
     block3: { title: 'Work Like Your In-House Reg Team', description: 'We gain an in-depth understanding of our clients’ products and strategies, acting as an embedded regulatory team to make practical and sustainable regulatory decisions together.' },
     block4: { title: 'Transparent Process, Regulatory Engagement', description: 'We ensure full transparency throughout the process and, when needed, establish effective communication with regulatory authorities.' },
-    block5: { title: 'Navigate Regulatory Complexity with Confidence', description: 'By understanding the policy history, review logic, and cultural context behind China’s rules, we help clients focus on what matters and move forward with clarity and confidence.' },
+    block5: { title: 'Navigate Regulatory Complexity with Confidence', description: 'By understanding the policy history, review logic, and cultural context behind China\'s rules, we help clients focus on what matters and move forward with clarity and confidence.' },
   },
+  // DEPRECATED: Use 'cases' pageKey config from usePublicContent hook
   caseListPage: {
     hero: {
       label: 'Case List',
@@ -111,6 +144,7 @@ export const common = {
       items: 'Achieved regulatory approval rapidly despite no prior precedents.\nWhile standard safety certificates for GM crops typically take around seven years, this project secured approval in less than half that time.',
     },
   },
+  // DEPRECATED: Use 'experts' pageKey config from usePublicContent hook
   expertTeamPage: {
     hero: {
       label: 'Expert Introduction',
@@ -130,6 +164,7 @@ export const common = {
       },
     },
   },
+  // DEPRECATED: Use 'about' pageKey config from usePublicContent hook
   aboutPage: {
     hero: {
       label: 'About Us',
@@ -146,6 +181,7 @@ export const common = {
       description: "We have supported clients in securing approvals for multiple first-of-their-kind products and provide long-term regulatory strategy support. By consistently delivering at critical milestones, we build lasting trust and credibility with our clients.",
     },
   },
+  // DEPRECATED: Use 'contact' pageKey config from usePublicContent hook
   contactPage: {
     hero: {
       title: 'Contact Us',
@@ -167,6 +203,8 @@ export const common = {
       address: 'Address: No. 115, 1/F, Building 3, Courtyard 9, West Huilongguan Street, Changping District, Beijing',
     },
   },
+  // DEPRECATED: Use 'global' pageKey config from usePublicContent hook (partially)
+  // Note: Some footer content may still be in transition to config-driven rendering
   footer: {
     address: 'Address: Building 3, Floor 1, Unit 115, No. 9 West Huilongguan Street, Changping District, Beijing',
     phone: 'Phone: +86 159 1076 9614',
