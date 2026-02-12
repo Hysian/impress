@@ -11,6 +11,11 @@ const CoreServicesPage = lazy(() => import('../pages/core-services/page'));
 const ContactPage = lazy(() => import('../pages/contact/page'));
 const NotFound = lazy(() => import('../pages/NotFound'));
 
+// Admin routes
+const AdminLayout = lazy(() => import('../pages/admin/AdminLayout'));
+const AdminLoginPage = lazy(() => import('../pages/admin/login/page'));
+const AdminContentPage = lazy(() => import('../pages/admin/content/page'));
+
 const routes: RouteObject[] = [
   {
     path: '/',
@@ -39,6 +44,20 @@ const routes: RouteObject[] = [
   {
     path: '/contact',
     element: <ContactPage />,
+  },
+  {
+    path: '/admin',
+    element: <AdminLayout />,
+    children: [
+      {
+        path: 'login',
+        element: <AdminLoginPage />,
+      },
+      {
+        path: 'content',
+        element: <AdminContentPage />,
+      },
+    ],
   },
   {
     path: '*',
