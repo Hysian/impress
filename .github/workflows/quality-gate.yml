@@ -1,0 +1,193 @@
+name: Quality Gate
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+  pull_request:
+    branches:
+      - main
+      - master
+      - develop
+
+jobs:
+  frontend-checks:
+    name: Frontend Quality Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run ESLint
+        run: pnpm lint
+
+      - name: Run TypeScript type check
+        run: pnpm type-check
+
+      - name: Run frontend tests
+        run: pnpm test:run
+
+      - name: Upload frontend test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-test-results
+          path: |
+            coverage/
+          retention-days: 7
+
+  backend-checks:
+    name: Backend Quality Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+
+      - name: Verify Go module dependencies
+        run: |
+          go mod verify
+          go mod tidy
+          git diff --exit-code go.mod go.sum
+
+      - name: Run Go vet
+        run: go vet ./...
+
+      - name: Run Go tests
+        run: go test -v -race -coverprofile=coverage.out ./...
+
+      - name: Upload backend test coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: coverage.out
+          retention-days: 7
+
+  integration-smoke:
+    name: Integration Smoke Checks
+    runs-on: ubuntu-latest
+    needs: [frontend-checks, backend-checks]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        run: pnpm build
+
+      - name: Build backend
+        run: go build -v -o ./server ./cmd/server
+
+      - name: Verify backend binary
+        run: |
+          if [ ! -f ./server ]; then
+            echo "Backend binary not found"
+            exit 1
+          fi
+          echo "Backend binary built successfully"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            dist/
+            server
+          retention-days: 7
+
+  quality-gate-summary:
+    name: Quality Gate Summary
+    runs-on: ubuntu-latest
+    needs: [frontend-checks, backend-checks, integration-smoke]
+    if: always()
+
+    steps:
+      - name: Check job statuses
+        run: |
+          echo "Frontend checks: ${{ needs.frontend-checks.result }}"
+          echo "Backend checks: ${{ needs.backend-checks.result }}"
+          echo "Integration smoke: ${{ needs.integration-smoke.result }}"
+
+          if [ "${{ needs.frontend-checks.result }}" != "success" ] || \
+             [ "${{ needs.backend-checks.result }}" != "success" ] || \
+             [ "${{ needs.integration-smoke.result }}" != "success" ]; then
+            echo "❌ Quality gate FAILED"
+            exit 1
+          fi
+
+          echo "✅ Quality gate PASSED"
+
+      - name: Post summary
+        run: |
+          echo "## Quality Gate Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend Checks | ${{ needs.frontend-checks.result == 'success' && '✅ PASS' || '❌ FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend Checks | ${{ needs.backend-checks.result == 'success' && '✅ PASS' || '❌ FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Integration Smoke | ${{ needs.integration-smoke.result == 'success' && '✅ PASS' || '❌ FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.frontend-checks.result }}" = "success" ] && \
+             [ "${{ needs.backend-checks.result }}" = "success" ] && \
+             [ "${{ needs.integration-smoke.result }}" = "success" ]; then
+            echo "### ✅ All checks passed - Ready to merge" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Some checks failed - Merge blocked" >> $GITHUB_STEP_SUMMARY
+          fi
