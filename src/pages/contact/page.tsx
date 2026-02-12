@@ -3,11 +3,47 @@ import { useTranslation } from 'react-i18next';
 import Header from '../../components/feature/Header';
 import Footer from '../../components/feature/Footer';
 import PageHero from '../../components/feature/PageHero';
+import { usePublicContent } from '@/hooks/usePublicContent';
+import type { Locale } from '@/api/publicContent';
 
-const HERO_BG_COLOR = '#1E9188';
+interface HeroConfig {
+  title?: string;
+  subtitle?: string;
+  backgroundColor?: string;
+}
+
+interface FormConfig {
+  title?: string;
+  subtitle?: string;
+  nameLabel?: string;
+  namePlaceholder?: string;
+  emailLabel?: string;
+  emailPlaceholder?: string;
+  messageLabel?: string;
+  messagePlaceholder?: string;
+  submit?: string;
+}
+
+interface ContactInfo {
+  phone?: string;
+  address?: string;
+}
+
+interface ContactPageConfig {
+  hero?: HeroConfig;
+  form?: FormConfig;
+  contact?: ContactInfo;
+}
 
 export default function ContactPage() {
-  const { t } = useTranslation('common');
+  const { i18n } = useTranslation('common');
+  const locale = (i18n.language === 'zh' || i18n.language.startsWith('zh') ? 'zh' : 'en') as Locale;
+
+  const { loading, error, config } = usePublicContent('contact', {
+    locale,
+    autoNormalize: true,
+  });
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
@@ -17,14 +53,36 @@ export default function ContactPage() {
     // 可在此接入实际提交逻辑
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-gray-600">Loading...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-red-600">Failed to load page content</div>
+      </div>
+    );
+  }
+
+  const pageConfig = (config as ContactPageConfig) || {};
+  const hero = pageConfig.hero || {};
+  const form = pageConfig.form || {};
+  const contact = pageConfig.contact || {};
+  const heroBgColor = hero.backgroundColor || '#1E9188';
+
   return (
     <div className="min-h-screen bg-white">
       <Header />
 
       <PageHero
-        title={t('contactPage.hero.title')}
-        subtitle={t('contactPage.hero.subtitle')}
-        backgroundColor={HERO_BG_COLOR}
+        title={hero.title}
+        subtitle={hero.subtitle}
+        backgroundColor={heroBgColor}
       />
 
       {/* 主内容：标题+联系方式左右布局，表单区域单独居中 */}
@@ -33,38 +91,46 @@ export default function ContactPage() {
           {/* 左右布局：联络我们的专家+副标题 | 联系方式 */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-start">
             <div>
-              <div className="flex items-center mb-2">
-                <div className="w-[26px] h-[26px] bg-[#8bc34a] mr-3 flex-shrink-0 rounded-full" />
-                <h2 className="text-xl md:text-2xl font-bold text-[#1a5f8f]">
-                  {t('contactPage.form.title')}
-                </h2>
-              </div>
-              <p className="text-gray-500 text-sm">
-                {t('contactPage.form.subtitle')}
-              </p>
+              {form.title && (
+                <div className="flex items-center mb-2">
+                  <div className="w-[26px] h-[26px] bg-[#8bc34a] mr-3 flex-shrink-0 rounded-full" />
+                  <h2 className="text-xl md:text-2xl font-bold text-[#1a5f8f]">
+                    {form.title}
+                  </h2>
+                </div>
+              )}
+              {form.subtitle && (
+                <p className="text-gray-500 text-sm">
+                  {form.subtitle}
+                </p>
+              )}
             </div>
             <div className="space-y-6">
-              <div className="flex items-start gap-4">
-                <span className="text-[#1a5f8f] mt-1 flex-shrink-0" aria-hidden>
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                  </svg>
-                </span>
-                <div>
-                  <p className="text-gray-900 font-medium">{t('contactPage.contact.phone')}</p>
+              {contact.phone && (
+                <div className="flex items-start gap-4">
+                  <span className="text-[#1a5f8f] mt-1 flex-shrink-0" aria-hidden>
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
+                  </span>
+                  <div>
+                    <p className="text-gray-900 font-medium">{contact.phone}</p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-start gap-4">
-                <span className="text-[#1a5f8f] mt-1 flex-shrink-0" aria-hidden>
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </span>
-                <div>
-                  <p className="text-gray-900">{t('contactPage.contact.address')}</p>
+              )}
+              {contact.address && (
+                <div className="flex items-start gap-4">
+                  <span className="text-[#1a5f8f] mt-1 flex-shrink-0" aria-hidden>
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </span>
+                  <div>
+                    <p className="text-gray-900">{contact.address}</p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 
@@ -73,7 +139,7 @@ export default function ContactPage() {
             <form onSubmit={handleSubmit} className="w-full max-w-md space-y-4">
               <div>
                 <label htmlFor="contact-name" className="block text-gray-900 text-sm font-medium mb-1">
-                  {t('contactPage.form.nameLabel')} *
+                  {form.nameLabel || 'Name'} *
                 </label>
                 <input
                   id="contact-name"
@@ -81,13 +147,13 @@ export default function ContactPage() {
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder={t('contactPage.form.namePlaceholder')}
+                  placeholder={form.namePlaceholder}
                   className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1E9188] focus:border-transparent"
                 />
               </div>
               <div>
                 <label htmlFor="contact-email" className="block text-gray-900 text-sm font-medium mb-1">
-                  {t('contactPage.form.emailLabel')} *
+                  {form.emailLabel || 'Email'} *
                 </label>
                 <input
                   id="contact-email"
@@ -95,20 +161,20 @@ export default function ContactPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder={t('contactPage.form.emailPlaceholder')}
+                  placeholder={form.emailPlaceholder}
                   className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1E9188] focus:border-transparent"
                 />
               </div>
               <div>
                 <label htmlFor="contact-message" className="block text-gray-900 text-sm font-medium mb-1">
-                  {t('contactPage.form.messageLabel')}
+                  {form.messageLabel || 'Message'}
                 </label>
                 <textarea
                   id="contact-message"
                   rows={5}
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  placeholder={t('contactPage.form.messagePlaceholder')}
+                  placeholder={form.messagePlaceholder}
                   className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1E9188] focus:border-transparent resize-y"
                 />
               </div>
@@ -116,9 +182,9 @@ export default function ContactPage() {
                 <button
                   type="submit"
                   className="px-8 py-3 rounded-md text-white font-medium transition-colors cursor-pointer"
-                  style={{ backgroundColor: HERO_BG_COLOR }}
+                  style={{ backgroundColor: heroBgColor }}
                 >
-                  {t('contactPage.form.submit')}
+                  {form.submit || 'Submit'}
                 </button>
               </div>
             </form>

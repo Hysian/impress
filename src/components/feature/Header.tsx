@@ -1,11 +1,38 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { usePublicContent } from '@/hooks/usePublicContent';
+import type { Locale } from '@/api/publicContent';
+
+interface NavItem {
+  label?: string;
+  path?: string;
+}
+
+interface HeaderConfig {
+  logo?: string;
+  navigation?: NavItem[];
+}
+
+interface GlobalConfig {
+  header?: HeaderConfig;
+}
 
 export default function Header() {
-  const { t, i18n } = useTranslation('common');
+  const { i18n } = useTranslation('common');
+  const locale = (i18n.language === 'zh' || i18n.language.startsWith('zh') ? 'zh' : 'en') as Locale;
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const { config } = usePublicContent('global', {
+    locale,
+    autoNormalize: true,
+  });
+
+  const globalConfig = (config as GlobalConfig) || {};
+  const header = globalConfig.header || {};
+  const navigation = header.navigation || [];
+  const logoSrc = header.logo || '/images/logo.png';
 
   useEffect(() => {
     const handleScroll = () => {
@@ -44,9 +71,9 @@ export default function Header() {
           <div className="flex justify-between items-center">
             {/* Logo */}
             <div className="flex items-center">
-              <Link to="/"> 
+              <Link to="/">
                 <img
-                  src="/images/logo.png"
+                  src={logoSrc}
                   alt="Blotting Consultancy"
                   className="h-10 w-auto"
                 />
@@ -54,64 +81,21 @@ export default function Header() {
             </div>
 
             {/* Desktop Navigation */}
-            <div className="hidden lg:flex items-center space-x-8">
-              <Link
-                to="/"
-                className={`text-sm font-medium transition-colors whitespace-nowrap cursor-pointer ${
-                  isScrolled ? 'text-gray-700 hover:text-[#8bc34a]' : 'text-white hover:text-[#8bc34a]'
-                }`}
-              >
-                {t('nav.home')}
-              </Link>
-              <Link
-                to="/about"
-                className={`text-sm font-medium transition-colors whitespace-nowrap cursor-pointer ${
-                  isScrolled ? 'text-gray-700 hover:text-[#8bc34a]' : 'text-white hover:text-[#8bc34a]'
-                }`}
-              >
-                {t('nav.about')}
-              </Link>
-              <Link
-                to="/advantages"
-                className={`text-sm font-medium transition-colors whitespace-nowrap cursor-pointer ${
-                  isScrolled ? 'text-gray-700 hover:text-[#8bc34a]' : 'text-white hover:text-[#8bc34a]'
-                }`}
-              >
-                {t('nav.services')}
-              </Link>
-              <Link
-                to="/cases"
-                className={`text-sm font-medium transition-colors whitespace-nowrap cursor-pointer ${
-                  isScrolled ? 'text-gray-700 hover:text-[#8bc34a]' : 'text-white hover:text-[#8bc34a]'
-                }`}
-              >
-                {t('nav.projects')}
-              </Link>
-              <Link
-                to="/core-services"
-                className={`text-sm font-medium transition-colors whitespace-nowrap cursor-pointer ${
-                  isScrolled ? 'text-gray-700 hover:text-[#8bc34a]' : 'text-white hover:text-[#8bc34a]'
-                }`}
-              >
-                {t('nav.coreServices')}
-              </Link>
-              <Link
-                to="/experts"
-                className={`text-sm font-medium transition-colors whitespace-nowrap cursor-pointer ${
-                  isScrolled ? 'text-gray-700 hover:text-[#8bc34a]' : 'text-white hover:text-[#8bc34a]'
-                }`}
-              >
-                {t('nav.expertTeam')}
-              </Link>
-              <Link
-                to="/contact"
-                className={`text-sm font-medium transition-colors whitespace-nowrap cursor-pointer ${
-                  isScrolled ? 'text-gray-700 hover:text-[#8bc34a]' : 'text-white hover:text-[#8bc34a]'
-                }`}
-              >
-                {t('nav.contact')}
-              </Link>
-            </div>
+            {navigation.length > 0 && (
+              <div className="hidden lg:flex items-center space-x-8">
+                {navigation.map((item, index) => (
+                  <Link
+                    key={index}
+                    to={item.path || '/'}
+                    className={`text-sm font-medium transition-colors whitespace-nowrap cursor-pointer ${
+                      isScrolled ? 'text-gray-700 hover:text-[#8bc34a]' : 'text-white hover:text-[#8bc34a]'
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            )}
 
             {/* Mobile Menu Button */}
             <button
@@ -129,50 +113,18 @@ export default function Header() {
           </div>
 
           {/* Mobile Menu */}
-          {isMobileMenuOpen && (
+          {isMobileMenuOpen && navigation.length > 0 && (
             <div className="lg:hidden mt-4 pb-4 space-y-3">
-              <Link
-                to="/about"
-                className="block text-sm font-medium text-gray-700 hover:text-[#8bc34a] transition-colors cursor-pointer"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                {t('nav.about')}
-              </Link>
-              <Link
-                to="/advantages"
-                className="block text-sm font-medium text-gray-700 hover:text-[#8bc34a] transition-colors cursor-pointer"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                {t('nav.services')}
-              </Link>
-              <Link
-                to="/cases"
-                className="block text-sm font-medium text-gray-700 hover:text-[#8bc34a] transition-colors cursor-pointer"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                {t('nav.projects')}
-              </Link>
-              <Link
-                to="/core-services"
-                className="block text-sm font-medium text-gray-700 hover:text-[#8bc34a] transition-colors cursor-pointer"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                {t('nav.coreServices')}
-              </Link>
-              <Link
-                to="/experts"
-                className="block text-sm font-medium text-gray-700 hover:text-[#8bc34a] transition-colors cursor-pointer"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                {t('nav.expertTeam')}
-              </Link>
-              <Link
-                to="/contact"
-                className="block text-sm font-medium text-gray-700 hover:text-[#8bc34a] transition-colors cursor-pointer"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                {t('nav.contact')}
-              </Link>
+              {navigation.map((item, index) => (
+                <Link
+                  key={index}
+                  to={item.path || '/'}
+                  className="block text-sm font-medium text-gray-700 hover:text-[#8bc34a] transition-colors cursor-pointer"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  {item.label}
+                </Link>
+              ))}
             </div>
           )}
         </div>

@@ -1,8 +1,43 @@
 
 import { useTranslation } from 'react-i18next';
+import { usePublicContent } from '@/hooks/usePublicContent';
+import type { Locale } from '@/api/publicContent';
+
+interface LinkItem {
+  label?: string;
+  href?: string;
+}
+
+interface LinkSection {
+  title?: string;
+  links?: LinkItem[];
+}
+
+interface FooterConfig {
+  logo?: string;
+  address?: string;
+  phone?: string;
+  sections?: LinkSection[];
+  copyright?: string;
+}
+
+interface GlobalConfig {
+  footer?: FooterConfig;
+}
 
 export default function Footer() {
-  const { t } = useTranslation('common');
+  const { i18n } = useTranslation('common');
+  const locale = (i18n.language === 'zh' || i18n.language.startsWith('zh') ? 'zh' : 'en') as Locale;
+
+  const { config } = usePublicContent('global', {
+    locale,
+    autoNormalize: true,
+  });
+
+  const globalConfig = (config as GlobalConfig) || {};
+  const footer = globalConfig.footer || {};
+  const logoSrc = footer.logo || '/images/logo.png';
+  const sections = footer.sections || [];
 
   return (
     <footer className="bg-[#1a5f8f] text-white">
@@ -11,52 +46,48 @@ export default function Footer() {
           {/* Company Info - 左侧 */}
           <div>
             <img
-              src="/images/logo.png"
+              src={logoSrc}
               alt="Blotting Consultancy"
               className="h-10 w-auto mb-4"
             />
             <div className="space-y-2 text-sm text-gray-300">
-              <p>{t('footer.address')}</p>
-              <p>{t('footer.phone')}</p>
+              {footer.address && <p>{footer.address}</p>}
+              {footer.phone && <p>{footer.phone}</p>}
             </div>
           </div>
 
-          {/* Company Links + Services Links - 整体靠右 */}
-          <div className="flex flex-col sm:flex-row gap-8 md:ml-auto">
-            {/* Company Links */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4">{t('footer.companySection')}</h3>
-              <ul className="space-y-2 text-sm">
-              <li>
-                <a href="#about" className="text-gray-300 hover:text-[#8bc34a] transition-colors cursor-pointer">
-                  {t('footer.aboutUs')}
-                </a>
-              </li>
-              <li>
-                <a href="#team" className="text-gray-300 hover:text-[#8bc34a] transition-colors cursor-pointer">
-                  {t('footer.ourTeam')}
-                </a>
-              </li>
-              <li>
-                <a href="#cases" className="text-gray-300 hover:text-[#8bc34a] transition-colors cursor-pointer">
-                  {t('footer.caseStudies')}
-                </a>
-              </li>
-              <li>
-                <a href="#contact" className="text-gray-300 hover:text-[#8bc34a] transition-colors cursor-pointer">
-                  {t('footer.contactUs')}
-                </a>
-              </li>
-            </ul>
+          {/* Link Sections - 整体靠右 */}
+          {sections.length > 0 && (
+            <div className="flex flex-col sm:flex-row gap-8 md:ml-auto">
+              {sections.map((section, index) => (
+                <div key={index}>
+                  {section.title && (
+                    <h3 className="text-lg font-semibold mb-4">{section.title}</h3>
+                  )}
+                  {section.links && section.links.length > 0 && (
+                    <ul className="space-y-2 text-sm">
+                      {section.links.map((link, linkIndex) => (
+                        <li key={linkIndex}>
+                          <a
+                            href={link.href || '#'}
+                            className="text-gray-300 hover:text-[#8bc34a] transition-colors cursor-pointer"
+                          >
+                            {link.label}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))}
             </div>
-
-          </div>
+          )}
         </div>
 
         {/* Copyright */}
         <div className="mt-12 pt-8 border-t border-white/20 text-center">
           <p className="text-sm text-gray-300">
-            {t('footer.copyright')} | <a href="https://readdy.ai/?ref=logo" target="_blank" rel="noopener noreferrer" className="hover:text-[#8bc34a] transition-colors cursor-pointer">Website Builder</a>
+            {footer.copyright || '© 2024 Blotting Consultancy'} | <a href="https://readdy.ai/?ref=logo" target="_blank" rel="noopener noreferrer" className="hover:text-[#8bc34a] transition-colors cursor-pointer">Website Builder</a>
           </p>
         </div>
       </div>
