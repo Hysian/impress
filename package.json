@@ -18,7 +18,8 @@
     "build:frontend": "./scripts/build-frontend.sh",
     "build:backend": "./scripts/build-backend.sh",
     "deploy": "./scripts/deploy.sh",
-    "rollback": "./scripts/rollback.sh"
+    "rollback": "./scripts/rollback.sh",
+    "migrate:db": "./scripts/migrate-db.sh"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "4.0.2",

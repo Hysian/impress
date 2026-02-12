@@ -10,6 +10,7 @@ This directory contains production build and deployment automation scripts for t
 | `build-backend.sh` | Build versioned backend binary | `./scripts/build-backend.sh` |
 | `deploy.sh` | Deploy artifacts to production | `DEPLOY_HOST=prod.example.com VERSION=v1.0.0 ./scripts/deploy.sh` |
 | `rollback.sh` | Rollback to previous version | `DEPLOY_HOST=prod.example.com COMPONENT=all ./scripts/rollback.sh` |
+| `migrate-db.sh` | Migrate SQLite to PostgreSQL | `TARGET_DB_DSN="..." ./scripts/migrate-db.sh` |
 | `long-agent.mjs` | Long-running autonomous agent | `pnpm agent:run` |
 | `agent-usage.mjs` | Agent cost and usage tracking | `pnpm agent:usage` |
 
@@ -55,6 +56,19 @@ DEPLOY_HOST=prod.example.com COMPONENT=backend TARGET_VERSION=v1.2.0 pnpm rollba
 
 # List available versions
 DEPLOY_HOST=prod.example.com COMPONENT=list pnpm rollback
+```
+
+### Database Migration
+
+```bash
+# Migrate from SQLite to PostgreSQL
+export TARGET_DB_DSN="host=localhost user=blotting_user password=blotting_dev_password dbname=blotting_cms port=5432 sslmode=disable"
+pnpm migrate:db
+
+# Custom source database
+export SOURCE_DB_DSN="backups/20260212_120000/blotting.db.backup"
+export TARGET_DB_DSN="postgres://user:pass@host:5432/dbname"
+pnpm migrate:db
 ```
 
 ## Build Scripts
@@ -378,9 +392,70 @@ DEPLOY_HOST=prod.example.com COMPONENT=backend TARGET_VERSION=v1.1.0 ./scripts/r
 ## Additional Documentation
 
 - **Full Deployment Guide**: See `docs/deployment.md` for comprehensive deployment documentation
+- **Database Migration Guide**: See `docs/sqlite-to-postgres-migration.md` for SQLite to PostgreSQL migration playbook
 - **Docker Setup**: See `docs/docker-setup.md` for local development with Docker Compose
 - **API Specification**: See `docs/api-spec.md` for backend API contracts
 - **Development Plan**: See `docs/development-plan.md` for project roadmap
+
+## Database Migration Tools
+
+### migrate-db.sh
+
+Migrates data from SQLite (development) to PostgreSQL (production).
+
+**Process:**
+1. Creates timestamped backup of source SQLite database
+2. Connects to source and target databases
+3. Migrates users, content documents, and content versions
+4. Validates data integrity and counts
+5. Provides detailed migration summary
+
+**Environment Variables:**
+- `SOURCE_DB_DSN` (optional): Path to SQLite database (default: `data/blotting.db`)
+- `TARGET_DB_DSN` (required): PostgreSQL connection string
+
+**Usage Examples:**
+
+```bash
+# Migrate to local PostgreSQL (Docker Compose)
+export TARGET_DB_DSN="host=localhost user=blotting_user password=blotting_dev_password dbname=blotting_cms port=5432 sslmode=disable"
+pnpm migrate:db
+
+# Migrate from backup to production PostgreSQL
+export SOURCE_DB_DSN="backups/20260212_120000/blotting.db.backup"
+export TARGET_DB_DSN="host=prod-db.example.com user=blotting_user password=SECURE_PASSWORD dbname=blotting_cms port=5432 sslmode=require"
+./scripts/migrate-db.sh
+
+# Migration with custom timezone
+export TARGET_DB_DSN="host=localhost user=blotting_user password=pass dbname=blotting_cms port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+pnpm migrate:db
+```
+
+**Output:**
+- Backup directory: `backups/YYYYMMDD_HHMMSS/`
+  - `blotting.db.backup` (SQLite binary copy)
+  - `blotting_dump.sql` (SQL text dump)
+- Migration summary with success/failure counts per table
+- Exit code 0 on success, 1 on errors
+
+**Pre-Migration Checklist:**
+- [ ] Backup source SQLite database
+- [ ] Start PostgreSQL instance (e.g., `docker compose up -d db`)
+- [ ] Verify PostgreSQL is accessible (`pg_isready -h localhost -U blotting_user`)
+- [ ] Set `TARGET_DB_DSN` environment variable
+- [ ] Review `docs/sqlite-to-postgres-migration.md` for full migration guide
+
+**Post-Migration Validation:**
+1. Compare record counts in source and target
+2. Verify JSON/JSONB data integrity
+3. Test API behavior with PostgreSQL backend
+4. Check application health endpoint
+
+**Notes:**
+- Refresh tokens are NOT migrated (users must re-login)
+- Migration is idempotent for content documents (uses upsert)
+- Duplicate user/version errors are logged but don't stop migration
+- Full documentation: `docs/sqlite-to-postgres-migration.md`
 
 ## Support
 
