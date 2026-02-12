@@ -1,0 +1,566 @@
+package service
+
+import (
+	"blotting-consultancy/internal/model"
+	"fmt"
+	"strings"
+)
+
+// ValidationError represents a field-level validation error
+type ValidationError struct {
+	Path    string `json:"path"`
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+// TranslationState represents the translation status of a field
+type TranslationState string
+
+const (
+	TranslationStateDone    TranslationState = "done"
+	TranslationStateMissing TranslationState = "missing"
+	TranslationStateStale   TranslationState = "stale"
+)
+
+// ValidationResult represents the validation outcome
+type ValidationResult struct {
+	Valid             bool                        `json:"valid"`
+	Errors            []ValidationError           `json:"errors"`
+	TranslationStatus map[string]TranslationState `json:"translationStatus"`
+}
+
+// ValidationService provides content validation and translation state tracking
+type ValidationService struct{}
+
+// NewValidationService creates a new validation service
+func NewValidationService() *ValidationService {
+	return &ValidationService{}
+}
+
+// ValidateConfig validates a page configuration and calculates translation states
+func (vs *ValidationService) ValidateConfig(pageKey model.PageKey, config model.JSONMap) *ValidationResult {
+	result := &ValidationResult{
+		Valid:             true,
+		Errors:            []ValidationError{},
+		TranslationStatus: make(map[string]TranslationState),
+	}
+
+	switch pageKey {
+	case model.PageKeyHome:
+		vs.validateHomePage(config, result)
+	case model.PageKeyAbout:
+		vs.validateAboutPage(config, result)
+	case model.PageKeyAdvantages:
+		vs.validateAdvantagesPage(config, result)
+	case model.PageKeyCoreServices:
+		vs.validateCoreServicesPage(config, result)
+	case model.PageKeyCases:
+		vs.validateCasesPage(config, result)
+	case model.PageKeyExperts:
+		vs.validateExpertsPage(config, result)
+	case model.PageKeyContact:
+		vs.validateContactPage(config, result)
+	case model.PageKeyGlobal:
+		vs.validateGlobalPage(config, result)
+	default:
+		result.Valid = false
+		result.Errors = append(result.Errors, ValidationError{
+			Path:    "pageKey",
+			Code:    "INVALID_PAGE_KEY",
+			Message: fmt.Sprintf("Invalid page key: %s", pageKey),
+		})
+	}
+
+	result.Valid = len(result.Errors) == 0
+	return result
+}
+
+// CanPublish checks if a configuration can be published based on translation state
+func (vs *ValidationService) CanPublish(validationResult *ValidationResult) bool {
+	if !validationResult.Valid {
+		return false
+	}
+
+	// Block publish if any required field is missing or stale
+	for _, state := range validationResult.TranslationStatus {
+		if state == TranslationStateMissing || state == TranslationStateStale {
+			return false
+		}
+	}
+
+	return true
+}
+
+// Helper functions for validation
+
+func (vs *ValidationService) validateHomePage(config model.JSONMap, result *ValidationResult) {
+	// Validate hero section
+	hero := getMapField(config, "hero")
+	if hero == nil {
+		addRequiredError(result, "hero", "Hero section is required")
+	} else {
+		validateLocalizedText(hero, "hero.title", result, true)
+		validateLocalizedText(hero, "hero.subtitle", result, true)
+		validateMediaRef(hero, "hero.backgroundImage", result, true)
+	}
+
+	// Validate about section
+	about := getMapField(config, "about")
+	if about == nil {
+		addRequiredError(result, "about", "About section is required")
+	} else {
+		validateLocalizedText(about, "about.title", result, true)
+		validateMediaRef(about, "about.image", result, true)
+		validateCta(about, "about.cta", result, true)
+
+		// descriptions is an array of LocalizedRichText
+		descriptions := getArrayField(about, "descriptions")
+		if descriptions == nil || len(descriptions) == 0 {
+			addRequiredError(result, "about.descriptions", "At least one description is required")
+		} else {
+			for i, desc := range descriptions {
+				if descMap, ok := desc.(map[string]interface{}); ok {
+					path := fmt.Sprintf("about.descriptions[%d]", i)
+					validateLocalizedTextMap(descMap, path, result, true)
+				}
+			}
+		}
+	}
+
+	// Validate advantages section
+	advantages := getMapField(config, "advantages")
+	if advantages == nil {
+		addRequiredError(result, "advantages", "Advantages section is required")
+	} else {
+		validateLocalizedText(advantages, "advantages.title", result, true)
+		cards := getArrayField(advantages, "cards")
+		if cards == nil || len(cards) == 0 {
+			addRequiredError(result, "advantages.cards", "At least one advantage card is required")
+		} else {
+			for i, card := range cards {
+				if cardMap, ok := card.(map[string]interface{}); ok {
+					basePath := fmt.Sprintf("advantages.cards[%d]", i)
+					validateLocalizedText(cardMap, basePath+".title", result, true)
+					validateLocalizedText(cardMap, basePath+".titleEn", result, true)
+					validateLocalizedText(cardMap, basePath+".description", result, true)
+					validateMediaRef(cardMap, basePath+".image", result, true)
+				}
+			}
+		}
+	}
+
+	// Validate coreServices section
+	coreServices := getMapField(config, "coreServices")
+	if coreServices == nil {
+		addRequiredError(result, "coreServices", "Core services section is required")
+	} else {
+		validateLocalizedText(coreServices, "coreServices.title", result, true)
+		items := getArrayField(coreServices, "items")
+		if items == nil || len(items) == 0 {
+			addRequiredError(result, "coreServices.items", "At least one service item is required")
+		} else {
+			for i, item := range items {
+				if itemMap, ok := item.(map[string]interface{}); ok {
+					basePath := fmt.Sprintf("coreServices.items[%d]", i)
+					validateLocalizedText(itemMap, basePath+".title", result, true)
+					validateLocalizedText(itemMap, basePath+".description", result, true)
+					validateMediaRef(itemMap, basePath+".image", result, true)
+					validateCta(itemMap, basePath+".cta", result, true)
+				}
+			}
+		}
+	}
+}
+
+func (vs *ValidationService) validateAboutPage(config model.JSONMap, result *ValidationResult) {
+	// Validate hero
+	hero := getMapField(config, "hero")
+	if hero == nil {
+		addRequiredError(result, "hero", "Hero section is required")
+	} else {
+		validateLocalizedText(hero, "hero.label", result, true)
+		validateLocalizedText(hero, "hero.title", result, true)
+		validateMediaRef(hero, "hero.image", result, true)
+	}
+
+	// Validate companyProfile
+	profile := getMapField(config, "companyProfile")
+	if profile == nil {
+		addRequiredError(result, "companyProfile", "Company profile section is required")
+	} else {
+		validateLocalizedText(profile, "companyProfile.title", result, true)
+		validateLocalizedText(profile, "companyProfile.description", result, true)
+	}
+
+	// Validate blocks
+	blocks := getArrayField(config, "blocks")
+	if blocks == nil {
+		addRequiredError(result, "blocks", "Blocks section is required")
+	} else {
+		for i, block := range blocks {
+			if blockMap, ok := block.(map[string]interface{}); ok {
+				basePath := fmt.Sprintf("blocks[%d]", i)
+				validateLocalizedText(blockMap, basePath+".title", result, true)
+				validateLocalizedText(blockMap, basePath+".description", result, true)
+				validateMediaRef(blockMap, basePath+".image", result, true)
+			}
+		}
+	}
+}
+
+func (vs *ValidationService) validateAdvantagesPage(config model.JSONMap, result *ValidationResult) {
+	// Validate hero
+	hero := getMapField(config, "hero")
+	if hero == nil {
+		addRequiredError(result, "hero", "Hero section is required")
+	} else {
+		validateLocalizedText(hero, "hero.label", result, true)
+		validateLocalizedText(hero, "hero.title", result, true)
+		validateMediaRef(hero, "hero.image", result, true)
+	}
+
+	// Validate blocks
+	blocks := getArrayField(config, "blocks")
+	if blocks == nil || len(blocks) == 0 {
+		addRequiredError(result, "blocks", "At least one advantage block is required")
+	} else {
+		for i, block := range blocks {
+			if blockMap, ok := block.(map[string]interface{}); ok {
+				basePath := fmt.Sprintf("blocks[%d]", i)
+				validateLocalizedText(blockMap, basePath+".title", result, true)
+				validateLocalizedText(blockMap, basePath+".description", result, true)
+				validateMediaRef(blockMap, basePath+".image", result, true)
+			}
+		}
+	}
+}
+
+func (vs *ValidationService) validateCoreServicesPage(config model.JSONMap, result *ValidationResult) {
+	// Validate hero
+	hero := getMapField(config, "hero")
+	if hero == nil {
+		addRequiredError(result, "hero", "Hero section is required")
+	} else {
+		validateLocalizedText(hero, "hero.label", result, true)
+		validateLocalizedText(hero, "hero.title", result, true)
+		validateMediaRef(hero, "hero.image", result, true)
+	}
+
+	// Validate services
+	services := getArrayField(config, "services")
+	if services == nil || len(services) == 0 {
+		addRequiredError(result, "services", "At least one service is required")
+	} else {
+		for i, service := range services {
+			if serviceMap, ok := service.(map[string]interface{}); ok {
+				basePath := fmt.Sprintf("services[%d]", i)
+				validateLocalizedText(serviceMap, basePath+".title", result, true)
+				validateLocalizedText(serviceMap, basePath+".description", result, true)
+				validateMediaRef(serviceMap, basePath+".image", result, true)
+			}
+		}
+	}
+}
+
+func (vs *ValidationService) validateCasesPage(config model.JSONMap, result *ValidationResult) {
+	// Validate hero
+	hero := getMapField(config, "hero")
+	if hero == nil {
+		addRequiredError(result, "hero", "Hero section is required")
+	} else {
+		validateLocalizedText(hero, "hero.label", result, true)
+		validateLocalizedText(hero, "hero.title", result, true)
+		validateMediaRef(hero, "hero.image", result, true)
+	}
+
+	// Validate cases
+	cases := getArrayField(config, "cases")
+	if cases == nil || len(cases) == 0 {
+		addRequiredError(result, "cases", "At least one case is required")
+	} else {
+		for i, caseItem := range cases {
+			if caseMap, ok := caseItem.(map[string]interface{}); ok {
+				basePath := fmt.Sprintf("cases[%d]", i)
+				validateLocalizedText(caseMap, basePath+".title", result, true)
+
+				items := getArrayField(caseMap, "items")
+				if items == nil || len(items) == 0 {
+					addRequiredError(result, basePath+".items", "At least one case item is required")
+				} else {
+					for j, item := range items {
+						if itemMap, ok := item.(map[string]interface{}); ok {
+							itemPath := fmt.Sprintf("%s.items[%d]", basePath, j)
+							validateLocalizedTextMap(itemMap, itemPath, result, true)
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+func (vs *ValidationService) validateExpertsPage(config model.JSONMap, result *ValidationResult) {
+	// Validate hero
+	hero := getMapField(config, "hero")
+	if hero == nil {
+		addRequiredError(result, "hero", "Hero section is required")
+	} else {
+		validateLocalizedText(hero, "hero.label", result, true)
+		validateLocalizedText(hero, "hero.title", result, true)
+		validateMediaRef(hero, "hero.image", result, true)
+	}
+
+	// Validate sectionTitle
+	sectionTitle := getMapField(config, "sectionTitle")
+	if sectionTitle == nil {
+		addRequiredError(result, "sectionTitle", "Section title is required")
+	} else {
+		validateLocalizedTextMap(sectionTitle, "sectionTitle", result, true)
+	}
+
+	// Validate experts
+	experts := getArrayField(config, "experts")
+	if experts == nil || len(experts) == 0 {
+		addRequiredError(result, "experts", "At least one expert is required")
+	} else {
+		for i, expert := range experts {
+			if expertMap, ok := expert.(map[string]interface{}); ok {
+				basePath := fmt.Sprintf("experts[%d]", i)
+
+				// id is required but not bilingual
+				if id := getStringField(expertMap, "id"); id == "" {
+					addRequiredError(result, basePath+".id", "Expert ID is required")
+				}
+
+				validateLocalizedText(expertMap, basePath+".name", result, true)
+				validateLocalizedText(expertMap, basePath+".title", result, true)
+				validateMediaRef(expertMap, basePath+".avatar", result, true)
+
+				bioParagraphs := getArrayField(expertMap, "bioParagraphs")
+				if bioParagraphs == nil || len(bioParagraphs) == 0 {
+					addRequiredError(result, basePath+".bioParagraphs", "At least one bio paragraph is required")
+				} else {
+					for j, para := range bioParagraphs {
+						if paraMap, ok := para.(map[string]interface{}); ok {
+							paraPath := fmt.Sprintf("%s.bioParagraphs[%d]", basePath, j)
+							validateLocalizedTextMap(paraMap, paraPath, result, true)
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+func (vs *ValidationService) validateContactPage(config model.JSONMap, result *ValidationResult) {
+	// Validate hero
+	hero := getMapField(config, "hero")
+	if hero == nil {
+		addRequiredError(result, "hero", "Hero section is required")
+	} else {
+		validateLocalizedText(hero, "hero.title", result, true)
+		validateLocalizedText(hero, "hero.subtitle", result, true)
+		// backgroundColor is optional
+	}
+
+	// Validate form
+	form := getMapField(config, "form")
+	if form == nil {
+		addRequiredError(result, "form", "Form section is required")
+	} else {
+		validateLocalizedText(form, "form.title", result, true)
+		validateLocalizedText(form, "form.subtitle", result, true)
+		validateLocalizedText(form, "form.submitLabel", result, true)
+	}
+
+	// Validate contactInfo
+	contactInfo := getMapField(config, "contactInfo")
+	if contactInfo == nil {
+		addRequiredError(result, "contactInfo", "Contact info section is required")
+	} else {
+		validateLocalizedText(contactInfo, "contactInfo.phone", result, true)
+		validateLocalizedText(contactInfo, "contactInfo.address", result, true)
+	}
+}
+
+func (vs *ValidationService) validateGlobalPage(config model.JSONMap, result *ValidationResult) {
+	// Validate branding
+	branding := getMapField(config, "branding")
+	if branding == nil {
+		addRequiredError(result, "branding", "Branding section is required")
+	} else {
+		validateMediaRef(branding, "branding.logo", result, true)
+		validateLocalizedText(branding, "branding.companyName", result, true)
+	}
+
+	// Validate nav
+	nav := getMapField(config, "nav")
+	if nav == nil {
+		addRequiredError(result, "nav", "Navigation section is required")
+	}
+
+	// Validate footer
+	footer := getMapField(config, "footer")
+	if footer == nil {
+		addRequiredError(result, "footer", "Footer section is required")
+	} else {
+		validateLocalizedText(footer, "footer.address", result, true)
+		validateLocalizedText(footer, "footer.phone", result, true)
+		validateLocalizedText(footer, "footer.copyright", result, true)
+	}
+}
+
+// Field extraction helpers
+
+func getMapField(m map[string]interface{}, key string) map[string]interface{} {
+	if v, ok := m[key]; ok {
+		if mapVal, ok := v.(map[string]interface{}); ok {
+			return mapVal
+		}
+	}
+	return nil
+}
+
+func getArrayField(m map[string]interface{}, key string) []interface{} {
+	if v, ok := m[key]; ok {
+		if arrVal, ok := v.([]interface{}); ok {
+			return arrVal
+		}
+	}
+	return nil
+}
+
+func getStringField(m map[string]interface{}, key string) string {
+	if v, ok := m[key]; ok {
+		if strVal, ok := v.(string); ok {
+			return strVal
+		}
+	}
+	return ""
+}
+
+// Validation helpers
+
+func validateLocalizedText(parent map[string]interface{}, fullPath string, result *ValidationResult, required bool) {
+	// Extract the field name from fullPath (last segment after last dot)
+	parts := strings.Split(fullPath, ".")
+	fieldName := parts[len(parts)-1]
+
+	field := getMapField(parent, fieldName)
+	if field == nil {
+		if required {
+			addRequiredError(result, fullPath, "Field is required")
+		}
+		return
+	}
+
+	validateLocalizedTextMap(field, fullPath, result, required)
+}
+
+func validateLocalizedTextMap(field map[string]interface{}, fullPath string, result *ValidationResult, required bool) {
+	zh := getStringField(field, "zh")
+	en := getStringField(field, "en")
+
+	hasZh := strings.TrimSpace(zh) != ""
+	hasEn := strings.TrimSpace(en) != ""
+
+	if required {
+		if !hasZh && !hasEn {
+			result.TranslationStatus[fullPath] = TranslationStateMissing
+			result.Errors = append(result.Errors, ValidationError{
+				Path:    fullPath + ".zh",
+				Code:    "REQUIRED",
+				Message: "Chinese text is required",
+			})
+			result.Errors = append(result.Errors, ValidationError{
+				Path:    fullPath + ".en",
+				Code:    "REQUIRED",
+				Message: "English text is required",
+			})
+		} else if !hasZh {
+			result.TranslationStatus[fullPath] = TranslationStateMissing
+			result.Errors = append(result.Errors, ValidationError{
+				Path:    fullPath + ".zh",
+				Code:    "REQUIRED",
+				Message: "Chinese text is required",
+			})
+		} else if !hasEn {
+			result.TranslationStatus[fullPath] = TranslationStateMissing
+			result.Errors = append(result.Errors, ValidationError{
+				Path:    fullPath + ".en",
+				Code:    "REQUIRED",
+				Message: "English text is required",
+			})
+		} else {
+			result.TranslationStatus[fullPath] = TranslationStateDone
+		}
+	}
+}
+
+func validateMediaRef(parent map[string]interface{}, fullPath string, result *ValidationResult, required bool) {
+	parts := strings.Split(fullPath, ".")
+	fieldName := parts[len(parts)-1]
+
+	field := getMapField(parent, fieldName)
+	if field == nil {
+		if required {
+			addRequiredError(result, fullPath, "Media reference is required")
+		}
+		return
+	}
+
+	url := getStringField(field, "url")
+	if required && strings.TrimSpace(url) == "" {
+		result.Errors = append(result.Errors, ValidationError{
+			Path:    fullPath + ".url",
+			Code:    "REQUIRED",
+			Message: "Media URL is required",
+		})
+	}
+
+	// Validate alt text as LocalizedText
+	alt := getMapField(field, "alt")
+	if alt != nil {
+		validateLocalizedTextMap(alt, fullPath+".alt", result, required)
+	} else if required {
+		addRequiredError(result, fullPath+".alt", "Alt text is required")
+	}
+}
+
+func validateCta(parent map[string]interface{}, fullPath string, result *ValidationResult, required bool) {
+	parts := strings.Split(fullPath, ".")
+	fieldName := parts[len(parts)-1]
+
+	field := getMapField(parent, fieldName)
+	if field == nil {
+		if required {
+			addRequiredError(result, fullPath, "CTA is required")
+		}
+		return
+	}
+
+	href := getStringField(field, "href")
+	if required && strings.TrimSpace(href) == "" {
+		result.Errors = append(result.Errors, ValidationError{
+			Path:    fullPath + ".href",
+			Code:    "REQUIRED",
+			Message: "CTA href is required",
+		})
+	}
+
+	// Validate label as LocalizedText
+	label := getMapField(field, "label")
+	if label != nil {
+		validateLocalizedTextMap(label, fullPath+".label", result, required)
+	} else if required {
+		addRequiredError(result, fullPath+".label", "CTA label is required")
+	}
+}
+
+func addRequiredError(result *ValidationResult, path string, message string) {
+	result.Errors = append(result.Errors, ValidationError{
+		Path:    path,
+		Code:    "REQUIRED",
+		Message: message,
+	})
+}
