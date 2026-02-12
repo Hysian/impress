@@ -1,0 +1,93 @@
+version: '3.8'
+
+services:
+  # PostgreSQL database service
+  db:
+    image: postgres:15-alpine
+    container_name: blotting-db
+    environment:
+      POSTGRES_DB: blotting_cms
+      POSTGRES_USER: blotting_user
+      POSTGRES_PASSWORD: blotting_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U blotting_user -d blotting_cms"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - blotting-network
+
+  # Backend API service (Go/Gin/GORM)
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: blotting-backend
+    environment:
+      PORT: 8080
+      DB_DSN: "host=db user=blotting_user password=blotting_dev_password dbname=blotting_cms port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+      JWT_SECRET: "dev_jwt_secret_change_in_production"
+      JWT_REFRESH_SECRET: "dev_jwt_refresh_secret_change_in_production"
+      ENV: "development"
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      # Mount source for live reload during development (optional)
+      - ./cmd:/app/cmd
+      - ./internal:/app/internal
+      - ./pkg:/app/pkg
+      - ./go.mod:/app/go.mod
+      - ./go.sum:/app/go.sum
+    networks:
+      - blotting-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend SPA service (React/Vite)
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      target: development
+    container_name: blotting-frontend
+    environment:
+      VITE_API_BASE_URL: "http://localhost:8080"
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    volumes:
+      # Mount source for hot module reload
+      - ./src:/app/src
+      - ./public:/app/public
+      - ./index.html:/app/index.html
+      - ./vite.config.ts:/app/vite.config.ts
+      - ./tsconfig.json:/app/tsconfig.json
+      - ./tsconfig.app.json:/app/tsconfig.app.json
+      - ./tailwind.config.ts:/app/tailwind.config.ts
+      - ./postcss.config.ts:/app/postcss.config.ts
+      # Prevent node_modules from being overwritten
+      - /app/node_modules
+    networks:
+      - blotting-network
+    restart: unless-stopped
+    command: pnpm dev --host 0.0.0.0
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  blotting-network:
+    driver: bridge

@@ -15,3 +15,6 @@ go.work
 go.work.sum
 /server
 /cmd/server/server
+
+# Docker
+.env
