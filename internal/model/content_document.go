@@ -1,0 +1,128 @@
+package model
+
+import (
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
+	"time"
+
+	"gorm.io/gorm"
+)
+
+// PageKey represents a valid page key enum
+type PageKey string
+
+const (
+	PageKeyHome         PageKey = "home"
+	PageKeyAbout        PageKey = "about"
+	PageKeyAdvantages   PageKey = "advantages"
+	PageKeyCoreServices PageKey = "core-services"
+	PageKeyCases        PageKey = "cases"
+	PageKeyExperts      PageKey = "experts"
+	PageKeyContact      PageKey = "contact"
+	PageKeyGlobal       PageKey = "global"
+)
+
+// ValidPageKeys contains all valid page key values
+var ValidPageKeys = []PageKey{
+	PageKeyHome,
+	PageKeyAbout,
+	PageKeyAdvantages,
+	PageKeyCoreServices,
+	PageKeyCases,
+	PageKeyExperts,
+	PageKeyContact,
+	PageKeyGlobal,
+}
+
+// IsValid checks if a page key value is valid
+func (pk PageKey) IsValid() bool {
+	for _, valid := range ValidPageKeys {
+		if pk == valid {
+			return true
+		}
+	}
+	return false
+}
+
+// String returns the string representation of the page key
+func (pk PageKey) String() string {
+	return string(pk)
+}
+
+// ContentDocument represents a page configuration document
+type ContentDocument struct {
+	PageKey         PageKey        `gorm:"primaryKey;size:50"`
+	DraftConfig     JSONMap        `gorm:"type:jsonb"`
+	DraftVersion    int            `gorm:"not null;default:0"`
+	PublishedConfig JSONMap        `gorm:"type:jsonb"`
+	PublishedVersion int           `gorm:"not null;default:0"`
+	UpdatedAt       time.Time      `gorm:"autoUpdateTime"`
+}
+
+// JSONMap represents a JSON object stored in the database
+type JSONMap map[string]interface{}
+
+// Value implements the driver.Valuer interface for database serialization
+func (j JSONMap) Value() (driver.Value, error) {
+	if j == nil {
+		return json.Marshal(map[string]interface{}{})
+	}
+	return json.Marshal(j)
+}
+
+// Scan implements the sql.Scanner interface for database deserialization
+func (j *JSONMap) Scan(value interface{}) error {
+	if value == nil {
+		*j = make(JSONMap)
+		return nil
+	}
+
+	var bytes []byte
+	switch v := value.(type) {
+	case []byte:
+		bytes = v
+	case string:
+		bytes = []byte(v)
+	default:
+		return errors.New("failed to scan JSONMap: unsupported type")
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(bytes, &result); err != nil {
+		return err
+	}
+
+	*j = result
+	return nil
+}
+
+// TableName overrides the default table name
+func (ContentDocument) TableName() string {
+	return "content_documents"
+}
+
+// Validate validates the content document model
+func (cd *ContentDocument) Validate() error {
+	if !cd.PageKey.IsValid() {
+		return errors.New("pageKey must be one of: home, about, advantages, core-services, cases, experts, contact, global")
+	}
+	if cd.DraftVersion < 0 {
+		return errors.New("draftVersion cannot be negative")
+	}
+	if cd.PublishedVersion < 0 {
+		return errors.New("publishedVersion cannot be negative")
+	}
+	return nil
+}
+
+// BeforeSave hook to ensure JSON fields are initialized
+func (cd *ContentDocument) BeforeSave(tx *gorm.DB) error {
+	if cd.DraftConfig == nil {
+		cd.DraftConfig = make(JSONMap)
+	}
+	if cd.PublishedConfig == nil {
+		cd.PublishedConfig = make(JSONMap)
+	}
+	return nil
+}
