@@ -22,8 +22,10 @@ import (
 	"blotting-consultancy/internal/seed"
 	"blotting-consultancy/internal/service"
 	"blotting-consultancy/pkg/apierror"
+	"blotting-consultancy/pkg/audit"
 	"blotting-consultancy/pkg/config"
 	appLogger "blotting-consultancy/pkg/logger"
+	"blotting-consultancy/pkg/metrics"
 )
 
 func main() {
@@ -110,6 +112,10 @@ func main() {
 	)
 	log.Info("Services initialized")
 
+	// Initialize audit logger
+	auditLog := audit.NewLogger(log)
+	log.Info("Audit logger initialized")
+
 	// Initialize handlers
 	authHandlerInst := authHandler.NewHandler(userRepo, refreshTokenRepo, cfg)
 	contentHandlerInst := contentHandler.NewHandler(
@@ -118,6 +124,7 @@ func main() {
 		contentVersionRepo,
 		validationService,
 		contentService,
+		auditLog,
 	)
 	publicHandlerInst := publicHandler.NewHandler(contentDocRepo)
 	log.Info("Handlers initialized")
@@ -150,6 +157,39 @@ func main() {
 		c.JSON(200, gin.H{
 			"status": "healthy",
 			"timestamp": time.Now().UTC().Format(time.RFC3339),
+		})
+	})
+
+	// Metrics endpoint (no auth required, for operations dashboards)
+	router.GET("/metrics", func(c *gin.Context) {
+		m := metrics.Global()
+		publishTotal, publishSuccess, publishFailure := m.GetPublishMetrics()
+		validationTotal, validationFailures := m.GetValidationMetrics()
+		rollbackTotal, rollbackSuccess, rollbackFailure, rollbackP95 := m.GetRollbackMetrics()
+		publicGetTotal, publicGetSuccess, publicGetFailure, publicGetP95 := m.GetPublicGetMetrics()
+
+		c.JSON(200, gin.H{
+			"publish": gin.H{
+				"total":   publishTotal,
+				"success": publishSuccess,
+				"failure": publishFailure,
+			},
+			"validation": gin.H{
+				"total":    validationTotal,
+				"failures": validationFailures,
+			},
+			"rollback": gin.H{
+				"total":       rollbackTotal,
+				"success":     rollbackSuccess,
+				"failure":     rollbackFailure,
+				"latency_p95": rollbackP95.Milliseconds(),
+			},
+			"public_get": gin.H{
+				"total":       publicGetTotal,
+				"success":     publicGetSuccess,
+				"failure":     publicGetFailure,
+				"latency_p95": publicGetP95.Milliseconds(),
+			},
 		})
 	})
 

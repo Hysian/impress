@@ -24,6 +24,7 @@ import (
 	"blotting-consultancy/internal/repository"
 	"blotting-consultancy/internal/service"
 	"blotting-consultancy/pkg/apierror"
+	"blotting-consultancy/pkg/audit"
 	"blotting-consultancy/pkg/config"
 	appLogger "blotting-consultancy/pkg/logger"
 )
@@ -69,12 +70,18 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *db.DB) {
 		Env:              "test",
 	}
 	authHandlerInst := authHandler.NewHandler(userRepo, refreshTokenRepo, cfg)
+
+	// Initialize audit logger for tests
+	log := appLogger.New("test", map[string]interface{}{"service": "test"})
+	auditLog := audit.NewLogger(log)
+
 	contentHandlerInst := contentHandler.NewHandler(
 		database.DB,
 		contentDocRepo,
 		contentVersionRepo,
 		validationService,
 		contentService,
+		auditLog,
 	)
 	publicHandlerInst := publicHandler.NewHandler(contentDocRepo)
 

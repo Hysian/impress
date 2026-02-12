@@ -12,6 +12,7 @@ import (
 	"blotting-consultancy/internal/model"
 	"blotting-consultancy/internal/service"
 	"blotting-consultancy/pkg/apierror"
+	"blotting-consultancy/pkg/metrics"
 )
 
 // RollbackRequest represents the request for POST /admin/content/{pageKey}/rollback/{version}
@@ -31,6 +32,10 @@ type RollbackResponse struct {
 func (h *Handler) Rollback(c *gin.Context) {
 	pageKeyStr := c.Param("pageKey")
 	pageKey := model.PageKey(pageKeyStr)
+
+	// Record metrics attempt
+	metrics.Global().RecordRollbackAttempt()
+	startTime := time.Now()
 
 	// Validate page key
 	if !isValidPageKey(pageKey) {
@@ -63,17 +68,28 @@ func (h *Handler) Rollback(c *gin.Context) {
 	// Call rollback service
 	result, err := h.contentSvc.Rollback(c.Request.Context(), pageKey, sourceVersion, user.UserID)
 	if err != nil {
+		// Record failure metrics and audit log
+		metrics.Global().RecordRollbackFailure()
+
 		if errors.Is(err, service.ErrVersionNotFound) {
+			h.auditLog.LogRollbackFailure(pageKeyStr, user.Username, sourceVersion, "version_not_found")
 			c.JSON(http.StatusNotFound, apierror.NotFound("Source version not found"))
 			return
 		}
 		if errors.Is(err, service.ErrDocumentNotFound) {
+			h.auditLog.LogRollbackFailure(pageKeyStr, user.Username, sourceVersion, "not_found")
 			c.JSON(http.StatusNotFound, apierror.NotFound("Content document not found"))
 			return
 		}
+		h.auditLog.LogRollbackFailure(pageKeyStr, user.Username, sourceVersion, "internal_error")
 		c.JSON(http.StatusInternalServerError, apierror.InternalServerError("Failed to rollback content"))
 		return
 	}
+
+	// Record success metrics and audit log with latency
+	latency := time.Since(startTime)
+	metrics.Global().RecordRollbackSuccess(latency)
+	h.auditLog.LogRollbackSuccess(pageKeyStr, result.PublishedVersion, result.SourceVersion, user.Username)
 
 	// Return rollback result
 	response := RollbackResponse{

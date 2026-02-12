@@ -11,6 +11,7 @@ import (
 	"blotting-consultancy/internal/model"
 	"blotting-consultancy/internal/service"
 	"blotting-consultancy/pkg/apierror"
+	"blotting-consultancy/pkg/metrics"
 )
 
 // PublishRequest represents the request for POST /admin/content/{pageKey}/publish
@@ -30,6 +31,9 @@ type PublishResponse struct {
 func (h *Handler) Publish(c *gin.Context) {
 	pageKeyStr := c.Param("pageKey")
 	pageKey := model.PageKey(pageKeyStr)
+
+	// Record metrics attempt
+	metrics.Global().RecordPublishAttempt()
 
 	// Validate page key
 	if !isValidPageKey(pageKey) {
@@ -54,21 +58,34 @@ func (h *Handler) Publish(c *gin.Context) {
 	// Call publish service
 	result, err := h.contentSvc.Publish(c.Request.Context(), pageKey, req.ExpectedDraftVersion, user.UserID)
 	if err != nil {
+		// Record failure metrics and audit log
+		metrics.Global().RecordPublishFailure()
+
 		if errors.Is(err, service.ErrVersionMismatch) {
+			h.auditLog.LogPublishFailure(pageKeyStr, user.Username, "version_mismatch", map[string]interface{}{
+				"expected_version": req.ExpectedDraftVersion,
+			})
 			c.JSON(http.StatusConflict, apierror.New(http.StatusConflict, "CONFLICT_VERSION", "Draft version mismatch"))
 			return
 		}
 		if errors.Is(err, service.ErrCannotPublish) {
+			h.auditLog.LogPublishFailure(pageKeyStr, user.Username, "validation_failed", nil)
 			c.JSON(http.StatusUnprocessableEntity, apierror.New(http.StatusUnprocessableEntity, "VALIDATION_FAILED", "Publish blocked by missing or stale translations"))
 			return
 		}
 		if errors.Is(err, service.ErrDocumentNotFound) {
+			h.auditLog.LogPublishFailure(pageKeyStr, user.Username, "not_found", nil)
 			c.JSON(http.StatusNotFound, apierror.NotFound("Content document not found"))
 			return
 		}
+		h.auditLog.LogPublishFailure(pageKeyStr, user.Username, "internal_error", nil)
 		c.JSON(http.StatusInternalServerError, apierror.InternalServerError("Failed to publish content"))
 		return
 	}
+
+	// Record success metrics and audit log
+	metrics.Global().RecordPublishSuccess()
+	h.auditLog.LogPublishSuccess(pageKeyStr, result.PublishedVersion, user.Username, req.ExpectedDraftVersion)
 
 	// Return publish result
 	response := PublishResponse{

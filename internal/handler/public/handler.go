@@ -1,9 +1,12 @@
 package public
 
 import (
+	"time"
+
 	"blotting-consultancy/internal/model"
 	"blotting-consultancy/internal/repository"
 	"blotting-consultancy/pkg/apierror"
+	"blotting-consultancy/pkg/metrics"
 
 	"github.com/gin-gonic/gin"
 )
@@ -23,11 +26,16 @@ func NewHandler(docRepo repository.ContentDocumentRepository) *Handler {
 // GetPublicContent handles GET /public/content/{pageKey}?locale=zh|en
 // Returns published-only content with locale support
 func (h *Handler) GetPublicContent(c *gin.Context) {
+	// Record metrics attempt and start timer
+	metrics.Global().RecordPublicGetAttempt()
+	startTime := time.Now()
+
 	// Parse page key
 	pageKeyStr := c.Param("pageKey")
 	pageKey := model.PageKey(pageKeyStr)
 
 	if !pageKey.IsValid() {
+		metrics.Global().RecordPublicGetFailure()
 		c.JSON(400, apierror.BadRequest("invalid pageKey"))
 		return
 	}
@@ -35,6 +43,7 @@ func (h *Handler) GetPublicContent(c *gin.Context) {
 	// Parse locale parameter (default to zh)
 	locale := c.DefaultQuery("locale", "zh")
 	if locale != "zh" && locale != "en" {
+		metrics.Global().RecordPublicGetFailure()
 		c.JSON(400, apierror.BadRequest("locale must be zh or en"))
 		return
 	}
@@ -42,9 +51,14 @@ func (h *Handler) GetPublicContent(c *gin.Context) {
 	// Fetch published content document
 	doc, err := h.docRepo.FindByPageKey(c.Request.Context(), pageKey)
 	if err != nil {
+		metrics.Global().RecordPublicGetFailure()
 		c.JSON(404, apierror.NotFound("page not found"))
 		return
 	}
+
+	// Record success with latency
+	latency := time.Since(startTime)
+	metrics.Global().RecordPublicGetSuccess(latency)
 
 	// Return published-only data (never expose draft fields)
 	c.JSON(200, gin.H{

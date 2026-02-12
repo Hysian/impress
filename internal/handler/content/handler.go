@@ -6,6 +6,7 @@ import (
 	"blotting-consultancy/internal/model"
 	"blotting-consultancy/internal/repository"
 	"blotting-consultancy/internal/service"
+	"blotting-consultancy/pkg/audit"
 	"gorm.io/gorm"
 )
 
@@ -28,6 +29,7 @@ type Handler struct {
 	versionRepo   repository.ContentVersionRepository
 	validationSvc ValidationService
 	contentSvc    ContentService
+	auditLog      *audit.Logger
 }
 
 // NewHandler creates a new content handler
@@ -37,6 +39,7 @@ func NewHandler(
 	versionRepo repository.ContentVersionRepository,
 	validationSvc ValidationService,
 	contentSvc ContentService,
+	auditLog *audit.Logger,
 ) *Handler {
 	return &Handler{
 		db:            db,
@@ -44,5 +47,6 @@ func NewHandler(
 		versionRepo:   versionRepo,
 		validationSvc: validationSvc,
 		contentSvc:    contentSvc,
+		auditLog:      auditLog,
 	}
 }

@@ -5,9 +5,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"blotting-consultancy/internal/middleware"
 	"blotting-consultancy/internal/model"
 	"blotting-consultancy/internal/service"
 	"blotting-consultancy/pkg/apierror"
+	"blotting-consultancy/pkg/metrics"
 )
 
 // ValidateRequest represents the request for POST /admin/content/{pageKey}/validate
@@ -27,6 +29,9 @@ func (h *Handler) Validate(c *gin.Context) {
 	pageKeyStr := c.Param("pageKey")
 	pageKey := model.PageKey(pageKeyStr)
 
+	// Record metrics attempt
+	metrics.Global().RecordValidationAttempt()
+
 	// Validate page key
 	if !isValidPageKey(pageKey) {
 		c.JSON(http.StatusBadRequest, apierror.BadRequest("Invalid page key"))
@@ -40,8 +45,29 @@ func (h *Handler) Validate(c *gin.Context) {
 		return
 	}
 
+	// Extract user context for audit logging
+	user := middleware.GetUserContext(c)
+	actorName := "unknown"
+	if user != nil {
+		actorName = user.Username
+	}
+
 	// Validate config
 	result := h.validationSvc.ValidateConfig(pageKey, req.Config)
+
+	// Record metrics and audit log
+	if !result.Valid {
+		metrics.Global().RecordValidationFailure()
+	}
+
+	// Count translation issues (missing/stale states)
+	translationIssueCount := 0
+	for _, state := range result.TranslationStatus {
+		if state == service.TranslationStateMissing || state == service.TranslationStateStale {
+			translationIssueCount++
+		}
+	}
+	h.auditLog.LogValidation(pageKeyStr, actorName, result.Valid, len(result.Errors), translationIssueCount)
 
 	// Return validation result
 	response := ValidateResponse{
