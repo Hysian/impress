@@ -189,7 +189,7 @@ func main() {
 		adminPublish.Use(middleware.RequireAdmin())
 		{
 			adminPublish.POST("/content/:pageKey/publish", contentHandlerInst.Publish)
-			adminPublish.POST("/content/:pageKey/rollback", contentHandlerInst.Rollback)
+			adminPublish.POST("/content/:pageKey/rollback/:version", contentHandlerInst.Rollback)
 		}
 
 		// Version history

@@ -45,13 +45,11 @@ func (h *Handler) Publish(c *gin.Context) {
 	}
 
 	// Extract user context
-	userCtx, exists := c.Get(string(middleware.UserContextKey))
-	if !exists {
+	user := middleware.GetUserContext(c)
+	if user == nil {
 		c.JSON(http.StatusUnauthorized, apierror.Unauthorized("User context not found"))
 		return
 	}
-
-	user := userCtx.(middleware.UserContext)
 
 	// Call publish service
 	result, err := h.contentSvc.Publish(c.Request.Context(), pageKey, req.ExpectedDraftVersion, user.UserID)

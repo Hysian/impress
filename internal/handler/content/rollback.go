@@ -54,13 +54,11 @@ func (h *Handler) Rollback(c *gin.Context) {
 	}
 
 	// Extract user context
-	userCtx, exists := c.Get(string(middleware.UserContextKey))
-	if !exists {
+	user := middleware.GetUserContext(c)
+	if user == nil {
 		c.JSON(http.StatusUnauthorized, apierror.Unauthorized("User context not found"))
 		return
 	}
-
-	user := userCtx.(middleware.UserContext)
 
 	// Call rollback service
 	result, err := h.contentSvc.Rollback(c.Request.Context(), pageKey, sourceVersion, user.UserID)
