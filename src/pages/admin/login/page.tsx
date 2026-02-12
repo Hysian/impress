@@ -1,5 +1,6 @@
 import { useState, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -7,6 +8,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -14,28 +16,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await fetch("/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ username, password }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error?.message || "登录失败");
-      }
-
-      const data = await response.json();
-
-      // Store tokens and user info
-      localStorage.setItem("accessToken", data.accessToken);
-      localStorage.setItem("refreshToken", data.refreshToken);
-      localStorage.setItem("username", data.user.username);
-      localStorage.setItem("role", data.user.role);
-
-      // Redirect to content management
+      await login(username, password);
       navigate("/admin/content");
     } catch (err) {
       setError(err instanceof Error ? err.message : "登录失败，请重试");

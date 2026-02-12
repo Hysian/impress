@@ -1,12 +1,19 @@
-import { Outlet, Link, useLocation, Navigate } from "react-router-dom";
-import { useState } from "react";
+import { Outlet, Link, useLocation, Navigate, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function AdminLayout() {
   const location = useLocation();
-  const [isAuthenticated] = useState(() => {
-    // Check if user has access token in localStorage
-    return !!localStorage.getItem("accessToken");
-  });
+  const navigate = useNavigate();
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
+
+  // Show loading state while checking auth
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-gray-600">加载中...</div>
+      </div>
+    );
+  }
 
   // Redirect to login if not authenticated
   if (!isAuthenticated && location.pathname !== "/admin/login") {
@@ -17,6 +24,11 @@ export default function AdminLayout() {
   if (location.pathname === "/admin/login") {
     return <Outlet />;
   }
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/admin/login");
+  };
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -43,15 +55,13 @@ export default function AdminLayout() {
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">
-                {localStorage.getItem("username") || "管理员"}
+                {user?.username || "管理员"}
+              </span>
+              <span className="text-xs text-gray-500 px-2 py-1 bg-gray-100 rounded">
+                {user?.role === "admin" ? "管理员" : "编辑"}
               </span>
               <button
-                onClick={() => {
-                  localStorage.removeItem("accessToken");
-                  localStorage.removeItem("refreshToken");
-                  localStorage.removeItem("username");
-                  window.location.href = "/admin/login";
-                }}
+                onClick={handleLogout}
                 className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
               >
                 退出
