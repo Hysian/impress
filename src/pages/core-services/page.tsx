@@ -2,6 +2,24 @@ import { useTranslation } from 'react-i18next';
 import Header from '../../components/feature/Header';
 import Footer from '../../components/feature/Footer';
 import PageHero from '../../components/feature/PageHero';
+import { usePublicContent } from '@/hooks/usePublicContent';
+import type { Locale } from '@/api/publicContent';
+
+interface HeroConfig {
+  label?: string;
+  title?: string;
+}
+
+interface ServiceBlock {
+  title?: string;
+  description?: string;
+  image?: string;
+}
+
+interface CoreServicesPageConfig {
+  hero?: HeroConfig;
+  services?: ServiceBlock[];
+}
 
 /** 服务区块 - 图片 */
 function ServiceBlockImage({
@@ -48,55 +66,71 @@ function ServiceBlockText({
   );
 }
 
-/** 图片在 public/images/service/ 下：1.png、2.png、3.png */
-const SERVICE_IMAGES = [
-  { src: '/images/service/1.png', alt: 'Service 1' },
-  { src: '/images/service/2.png', alt: 'Service 2' },
-  { src: '/images/service/3.png', alt: 'Service 3' },
-];
-
-const SERVICE_KEYS = ['service1', 'service2', 'service3'] as const;
-
 export default function CoreServicesPage() {
-  const { t } = useTranslation('common');
+  const { i18n } = useTranslation('common');
+  const locale = (i18n.language === 'zh' || i18n.language.startsWith('zh') ? 'zh' : 'en') as Locale;
+
+  const { loading, error, config } = usePublicContent('core-services', {
+    locale,
+    autoNormalize: true,
+  });
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-gray-600">Loading...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-red-600">Failed to load page content</div>
+      </div>
+    );
+  }
+
+  const pageConfig = (config as CoreServicesPageConfig) || {};
+  const hero = pageConfig.hero || {};
+  const services = pageConfig.services || [];
 
   return (
     <div className="min-h-screen bg-white">
       <Header />
 
       <PageHero
-        label={t('coreServicesPage.hero.label')}
-        title={t('coreServicesPage.hero.title')}
+        label={hero.label || ''}
+        title={hero.title || ''}
         alt="Core Services Hero"
       />
 
       <div className="py-12 md:py-16 lg:py-24 bg-white">
-        {SERVICE_KEYS.map((key, index) => {
+        {services.map((service, index) => {
+          if (!service.title || !service.description) return null;
           const isImageLeft = index % 2 === 0;
-          const image = SERVICE_IMAGES[index];
-          const title = t(`coreServicesPage.${key}.title`);
-          const description = t(`coreServicesPage.${key}.description`);
+          const imageSrc = service.image || `/images/service/${index + 1}.png`;
           return (
-            <section key={key} className="bg-white">
+            <section key={index} className="bg-white">
               <div className="max-w-[1344px] mx-auto px-4 md:px-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 items-center gap-8 lg:gap-12">
                   {isImageLeft ? (
                     <>
                       <ServiceBlockImage
-                        src={image.src}
-                        alt={image.alt}
+                        src={imageSrc}
+                        alt={service.title}
                         className="order-2 lg:order-1"
                       />
                       <ServiceBlockText
-                        title={title}
-                        description={description}
+                        title={service.title}
+                        description={service.description}
                         className="order-1 lg:order-2"
                       />
                     </>
                   ) : (
                     <>
-                      <ServiceBlockText title={title} description={description} />
-                      <ServiceBlockImage src={image.src} alt={image.alt} />
+                      <ServiceBlockText title={service.title} description={service.description} />
+                      <ServiceBlockImage src={imageSrc} alt={service.title} />
                     </>
                   )}
                 </div>
