@@ -28,6 +28,14 @@ import (
 	"blotting-consultancy/pkg/metrics"
 )
 
+// Build-time variables (set via ldflags)
+var (
+	Version   = "dev"
+	BuildTime = "unknown"
+	GitCommit = "unknown"
+	GitBranch = "unknown"
+)
+
 func main() {
 	// Load configuration
 	cfg, err := config.Load()
@@ -39,8 +47,16 @@ func main() {
 	// Initialize logger
 	log := appLogger.New(cfg.Env, map[string]interface{}{
 		"service": "blotting-consultancy-api",
+		"version": Version,
 	})
-	log.Info("Starting server", "env", cfg.Env, "port", cfg.Port)
+	log.Info("Starting server",
+		"env", cfg.Env,
+		"port", cfg.Port,
+		"version", Version,
+		"buildTime", BuildTime,
+		"gitCommit", GitCommit,
+		"gitBranch", GitBranch,
+	)
 
 	// Initialize database
 	logLevel := logger.Info
@@ -155,8 +171,11 @@ func main() {
 		}
 
 		c.JSON(200, gin.H{
-			"status": "healthy",
+			"status":    "healthy",
 			"timestamp": time.Now().UTC().Format(time.RFC3339),
+			"version":   Version,
+			"buildTime": BuildTime,
+			"gitCommit": GitCommit,
 		})
 	})
 

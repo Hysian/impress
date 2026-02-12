@@ -3,6 +3,13 @@ node_modules/
 out/
 .long-agent/
 
+# Production build artifacts
+artifacts/
+*.tar.gz
+*.sha256
+blotting-api-*
+dist/
+
 # Go
 *.exe
 *.exe~

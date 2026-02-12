@@ -14,7 +14,11 @@
     "test:ui": "vitest --ui",
     "agent:init": "node scripts/long-agent.mjs --init-only",
     "agent:run": "node scripts/long-agent.mjs",
-    "agent:usage": "node scripts/agent-usage.mjs"
+    "agent:usage": "node scripts/agent-usage.mjs",
+    "build:frontend": "./scripts/build-frontend.sh",
+    "build:backend": "./scripts/build-backend.sh",
+    "deploy": "./scripts/deploy.sh",
+    "rollback": "./scripts/rollback.sh"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "4.0.2",
