@@ -1,0 +1,128 @@
+package repository
+
+import (
+	"context"
+	"testing"
+
+	"blotting-consultancy/internal/model"
+)
+
+func TestUserRepository_CreateAndFind(t *testing.T) {
+	database := setupTestDB(t)
+	defer database.Close()
+
+	repo := NewGormUserRepository(database.DB)
+	ctx := context.Background()
+
+	user := &model.User{
+		Username:     "testuser",
+		PasswordHash: "hashedpassword",
+		Role:         model.RoleAdmin,
+	}
+
+	// Test Create
+	err := repo.Create(ctx, user)
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+
+	if user.ID == 0 {
+		t.Error("Expected user ID to be set after creation")
+	}
+
+	// Test FindByID
+	found, err := repo.FindByID(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("Failed to find user by ID: %v", err)
+	}
+
+	if found.Username != user.Username {
+		t.Errorf("Expected username %s, got %s", user.Username, found.Username)
+	}
+
+	// Test FindByUsername
+	found2, err := repo.FindByUsername(ctx, "testuser")
+	if err != nil {
+		t.Fatalf("Failed to find user by username: %v", err)
+	}
+
+	if found2.ID != user.ID {
+		t.Errorf("Expected user ID %d, got %d", user.ID, found2.ID)
+	}
+}
+
+func TestUserRepository_UpdateAndDelete(t *testing.T) {
+	database := setupTestDB(t)
+	defer database.Close()
+
+	repo := NewGormUserRepository(database.DB)
+	ctx := context.Background()
+
+	user := &model.User{
+		Username:     "testuser",
+		PasswordHash:  "hashedpassword",
+		Role:         model.RoleAdmin,
+	}
+
+	_ = repo.Create(ctx, user)
+
+	// Test Update
+	user.Role = model.RoleEditor
+	err := repo.Update(ctx, user)
+	if err != nil {
+		t.Fatalf("Failed to update user: %v", err)
+	}
+
+	found, _ := repo.FindByID(ctx, user.ID)
+	if found.Role != model.RoleEditor {
+		t.Errorf("Expected role %s, got %s", model.RoleEditor, found.Role)
+	}
+
+	// Test Delete
+	err = repo.Delete(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("Failed to delete user: %v", err)
+	}
+
+	_, err = repo.FindByID(ctx, user.ID)
+	if err == nil {
+		t.Error("Expected error when finding deleted user")
+	}
+}
+
+func TestUserRepository_List(t *testing.T) {
+	database := setupTestDB(t)
+	defer database.Close()
+
+	repo := NewGormUserRepository(database.DB)
+	ctx := context.Background()
+
+	// Create 5 users
+	for i := 0; i < 5; i++ {
+		user := &model.User{
+			Username:     "testuser" + string(rune('a'+i)),
+			PasswordHash: "hashedpassword",
+			Role:         model.RoleAdmin,
+		}
+		_ = repo.Create(ctx, user)
+	}
+
+	users, total, err := repo.List(ctx, 0, 10)
+	if err != nil {
+		t.Fatalf("Failed to list users: %v", err)
+	}
+
+	if total != 5 {
+		t.Errorf("Expected 5 users, got %d", total)
+	}
+
+	if len(users) != 5 {
+		t.Errorf("Expected 5 users in list, got %d", len(users))
+	}
+
+	// Test pagination
+	users, _, _ = repo.List(ctx, 0, 3)
+	if len(users) != 3 {
+		t.Errorf("Expected 3 users in first page, got %d", len(users))
+	}
+}
