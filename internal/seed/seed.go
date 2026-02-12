@@ -1,0 +1,291 @@
+package seed
+
+import (
+	"context"
+	"log"
+	"strings"
+
+	"blotting-consultancy/internal/model"
+	"blotting-consultancy/internal/repository"
+	"blotting-consultancy/pkg/auth"
+)
+
+// Seeder handles idempotent seeding of initial data
+type Seeder struct {
+	userRepo    repository.UserRepository
+	contentRepo repository.ContentDocumentRepository
+}
+
+// NewSeeder creates a new seeder instance
+func NewSeeder(userRepo repository.UserRepository, contentRepo repository.ContentDocumentRepository) *Seeder {
+	return &Seeder{
+		userRepo:    userRepo,
+		contentRepo: contentRepo,
+	}
+}
+
+// SeedAll seeds all required initial data idempotently
+func (s *Seeder) SeedAll(ctx context.Context) error {
+	log.Println("Starting seed process...")
+
+	if err := s.SeedUsers(ctx); err != nil {
+		return err
+	}
+
+	if err := s.SeedContentDocuments(ctx); err != nil {
+		return err
+	}
+
+	log.Println("Seed process completed successfully")
+	return nil
+}
+
+// SeedUsers creates default admin and editor users if they don't exist
+func (s *Seeder) SeedUsers(ctx context.Context) error {
+	defaultUsers := []struct {
+		Username string
+		Password string
+		Role     model.Role
+	}{
+		{Username: "admin", Password: "admin123", Role: model.RoleAdmin},
+		{Username: "editor", Password: "editor123", Role: model.RoleEditor},
+	}
+
+	for _, userData := range defaultUsers {
+		// Check if user already exists
+		existingUser, err := s.userRepo.FindByUsername(ctx, userData.Username)
+		if err != nil && !strings.Contains(err.Error(), "not found") {
+			return err
+		}
+
+		if existingUser != nil {
+			log.Printf("User %s already exists, skipping", userData.Username)
+			continue
+		}
+
+		// Hash password
+		hashedPassword, err := auth.HashPassword(userData.Password)
+		if err != nil {
+			return err
+		}
+
+		// Create new user
+		user := &model.User{
+			Username:     userData.Username,
+			PasswordHash: hashedPassword,
+			Role:         userData.Role,
+		}
+
+		if err := s.userRepo.Create(ctx, user); err != nil {
+			return err
+		}
+
+		log.Printf("Created user: %s with role: %s", userData.Username, userData.Role)
+	}
+
+	return nil
+}
+
+// SeedContentDocuments creates initial content documents for all page keys if they don't exist
+func (s *Seeder) SeedContentDocuments(ctx context.Context) error {
+	for _, pageKey := range model.ValidPageKeys {
+		// Check if content document already exists
+		existingDoc, err := s.contentRepo.FindByPageKey(ctx, pageKey)
+		if err != nil && !strings.Contains(err.Error(), "not found") {
+			return err
+		}
+
+		if existingDoc != nil {
+			log.Printf("Content document for %s already exists, skipping", pageKey)
+			continue
+		}
+
+		// Create initial empty content document
+		doc := &model.ContentDocument{
+			PageKey:          pageKey,
+			DraftConfig:      getInitialConfig(pageKey),
+			DraftVersion:     1,
+			PublishedConfig:  getInitialConfig(pageKey),
+			PublishedVersion: 1,
+		}
+
+		if err := s.contentRepo.Create(ctx, doc); err != nil {
+			return err
+		}
+
+		log.Printf("Created content document for page: %s", pageKey)
+	}
+
+	return nil
+}
+
+// getInitialConfig returns an initial empty config structure for a page
+func getInitialConfig(pageKey model.PageKey) model.JSONMap {
+	// Return minimal valid config structure
+	// These are placeholders that can be edited via the admin UI
+	switch pageKey {
+	case model.PageKeyHome:
+		return model.JSONMap{
+			"hero": model.JSONMap{
+				"title": model.JSONMap{
+					"zh": "欢迎来到印迹咨询",
+					"en": "Welcome to Blotting Consultancy",
+				},
+				"subtitle": model.JSONMap{
+					"zh": "专业的咨询服务",
+					"en": "Professional Consulting Services",
+				},
+				"backgroundImage": model.JSONMap{
+					"url": "/images/hero-bg.jpg",
+					"alt": model.JSONMap{
+						"zh": "首页背景",
+						"en": "Home Background",
+					},
+				},
+			},
+			"about": model.JSONMap{
+				"title": model.JSONMap{
+					"zh": "关于我们",
+					"en": "About Us",
+				},
+				"descriptions": []interface{}{
+					model.JSONMap{
+						"zh": "印迹咨询提供专业的咨询服务",
+						"en": "Blotting Consultancy provides professional consulting services",
+					},
+				},
+				"image": model.JSONMap{
+					"url": "/images/about.jpg",
+					"alt": model.JSONMap{
+						"zh": "关于我们",
+						"en": "About Us",
+					},
+				},
+				"cta": model.JSONMap{
+					"label": model.JSONMap{
+						"zh": "了解更多",
+						"en": "Learn More",
+					},
+					"href":   "/about",
+					"target": "_self",
+				},
+			},
+			"advantages": model.JSONMap{
+				"title": model.JSONMap{
+					"zh": "我们的优势",
+					"en": "Our Advantages",
+				},
+				"cards": []interface{}{},
+			},
+			"coreServices": model.JSONMap{
+				"title": model.JSONMap{
+					"zh": "核心服务",
+					"en": "Core Services",
+				},
+				"items": []interface{}{},
+			},
+		}
+	case model.PageKeyAbout:
+		return model.JSONMap{
+			"hero": model.JSONMap{
+				"title": model.JSONMap{
+					"zh": "关于我们",
+					"en": "About Us",
+				},
+				"backgroundImage": model.JSONMap{
+					"url": "/images/about-hero.jpg",
+					"alt": model.JSONMap{
+						"zh": "关于我们背景",
+						"en": "About Us Background",
+					},
+				},
+			},
+			"companyProfile": model.JSONMap{
+				"title": model.JSONMap{
+					"zh": "公司简介",
+					"en": "Company Profile",
+				},
+				"content": model.JSONMap{
+					"zh": "印迹咨询成立于2020年",
+					"en": "Blotting Consultancy was established in 2020",
+				},
+			},
+			"blocks": []interface{}{},
+		}
+	case model.PageKeyAdvantages:
+		return model.JSONMap{
+			"hero": model.JSONMap{
+				"title": model.JSONMap{
+					"zh": "我们的优势",
+					"en": "Our Advantages",
+				},
+			},
+			"blocks": []interface{}{},
+		}
+	case model.PageKeyCoreServices:
+		return model.JSONMap{
+			"hero": model.JSONMap{
+				"title": model.JSONMap{
+					"zh": "核心服务",
+					"en": "Core Services",
+				},
+			},
+			"services": []interface{}{},
+		}
+	case model.PageKeyCases:
+		return model.JSONMap{
+			"hero": model.JSONMap{
+				"title": model.JSONMap{
+					"zh": "案例展示",
+					"en": "Case Studies",
+				},
+			},
+			"cases": []interface{}{},
+		}
+	case model.PageKeyExperts:
+		return model.JSONMap{
+			"hero": model.JSONMap{
+				"title": model.JSONMap{
+					"zh": "专家团队",
+					"en": "Our Experts",
+				},
+			},
+			"sectionTitle": model.JSONMap{
+				"zh": "团队介绍",
+				"en": "Team Introduction",
+			},
+			"experts": []interface{}{},
+		}
+	case model.PageKeyContact:
+		return model.JSONMap{
+			"hero": model.JSONMap{
+				"title": model.JSONMap{
+					"zh": "联系我们",
+					"en": "Contact Us",
+				},
+			},
+			"contactInfo": model.JSONMap{
+				"email": "info@blotting.com",
+				"phone": "+86 123 4567 8900",
+			},
+		}
+	case model.PageKeyGlobal:
+		return model.JSONMap{
+			"header": model.JSONMap{
+				"logo": model.JSONMap{
+					"url": "/images/logo.svg",
+					"alt": model.JSONMap{
+						"zh": "印迹咨询",
+						"en": "Blotting Consultancy",
+					},
+				},
+				"navLinks": []interface{}{},
+			},
+			"footer": model.JSONMap{
+				"links": []interface{}{},
+			},
+		}
+	default:
+		return model.JSONMap{}
+	}
+}

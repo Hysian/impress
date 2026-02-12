@@ -19,6 +19,7 @@ import (
 	"blotting-consultancy/internal/middleware"
 	"blotting-consultancy/internal/model"
 	"blotting-consultancy/internal/repository"
+	"blotting-consultancy/internal/seed"
 	"blotting-consultancy/internal/service"
 	"blotting-consultancy/pkg/apierror"
 	"blotting-consultancy/pkg/config"
@@ -88,6 +89,16 @@ func main() {
 	contentDocRepo := repository.NewGormContentDocumentRepository(database.DB)
 	contentVersionRepo := repository.NewGormContentVersionRepository(database.DB)
 	log.Info("Repositories initialized")
+
+	// Run seed (idempotent)
+	seeder := seed.NewSeeder(userRepo, contentDocRepo)
+	seedCtx, seedCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer seedCancel()
+	if err := seeder.SeedAll(seedCtx); err != nil {
+		log.Error("Failed to seed initial data", "error", err)
+		os.Exit(1)
+	}
+	log.Info("Seed data initialized")
 
 	// Initialize services
 	validationService := service.NewValidationService()
