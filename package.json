@@ -10,7 +10,8 @@
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "type-check": "tsc --noEmit --project tsconfig.app.json",
     "agent:init": "node scripts/long-agent.mjs --init-only",
-    "agent:run": "node scripts/long-agent.mjs"
+    "agent:run": "node scripts/long-agent.mjs",
+    "agent:usage": "node scripts/agent-usage.mjs"
   },
   "dependencies": {
     "i18next": "^25.3.2",

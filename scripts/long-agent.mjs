@@ -12,48 +12,67 @@ const __dirname = path.dirname(__filename);
 const DEFAULT_PLAN_PATH = "docs/development-plan.md";
 const DEFAULT_STATE_DIR = ".long-agent";
 const DEFAULT_VERIFY_COMMAND = "pnpm lint && pnpm type-check";
+const DEFAULT_INIT_MIN_FEATURES = 24;
+const DEFAULT_INIT_MAX_FEATURES = 36;
+const DEFAULT_INIT_GRANULARITY = "balanced";
+const INIT_GRANULARITY_MODES = new Set(["coarse", "balanced", "fine"]);
 
-const INIT_SCHEMA = {
+const INIT_FEATURE_ITEM_SCHEMA = {
   type: "object",
-  required: ["project_summary", "features", "init_script", "next_action"],
+  required: ["id", "title", "description", "acceptance", "priority", "category"],
   additionalProperties: false,
   properties: {
-    project_summary: { type: "string", minLength: 20 },
-    next_action: { type: "string", minLength: 5 },
-    init_script: { type: "string", minLength: 20 },
-    features: {
+    id: { type: "string", minLength: 3 },
+    title: { type: "string", minLength: 5 },
+    description: { type: "string", minLength: 10 },
+    acceptance: {
       type: "array",
-      minItems: 20,
-      items: {
-        type: "object",
-        required: ["id", "title", "description", "acceptance", "priority", "category"],
-        additionalProperties: false,
-        properties: {
-          id: { type: "string", minLength: 3 },
-          title: { type: "string", minLength: 5 },
-          description: { type: "string", minLength: 10 },
-          acceptance: {
-            type: "array",
-            minItems: 2,
-            items: { type: "string", minLength: 5 }
-          },
-          priority: {
-            type: "string",
-            enum: ["P0", "P1", "P2", "P3"]
-          },
-          category: {
-            type: "string",
-            enum: ["foundation", "backend", "admin-ui", "frontend", "quality", "ops"]
-          },
-          depends_on: {
-            type: "array",
-            items: { type: "string", minLength: 1 }
-          }
-        }
-      }
+      minItems: 2,
+      items: { type: "string", minLength: 5 }
+    },
+    priority: {
+      type: "string",
+      enum: ["P0", "P1", "P2", "P3"]
+    },
+    category: {
+      type: "string",
+      enum: ["foundation", "backend", "admin-ui", "frontend", "quality", "ops"]
+    },
+    depends_on: {
+      type: "array",
+      items: { type: "string", minLength: 1 }
     }
   }
 };
+
+function createInitSchema(minItems, maxItems) {
+  return {
+    type: "object",
+    required: ["project_summary", "features", "init_script", "next_action"],
+    additionalProperties: false,
+    properties: {
+      project_summary: { type: "string", minLength: 20 },
+      next_action: { type: "string", minLength: 5 },
+      init_script: { type: "string", minLength: 20 },
+      features: {
+        type: "array",
+        minItems,
+        maxItems,
+        items: INIT_FEATURE_ITEM_SCHEMA
+      }
+    }
+  };
+}
+
+function getGranularityGuide(mode) {
+  if (mode === "coarse") {
+    return "Coarse mode: prioritize capability bundles; avoid single-endpoint or single-component tasks unless technically high risk.";
+  }
+  if (mode === "fine") {
+    return "Fine mode: split work for risk isolation when needed, but avoid trivial micro-tasks that only touch one helper or one minor UI element.";
+  }
+  return "Balanced mode: use medium-grain tasks where one feature usually delivers one end-to-end capability and avoid endpoint-by-endpoint splitting.";
+}
 
 const LOOP_SCHEMA = {
   type: "object",
@@ -100,6 +119,9 @@ function parseArgs(argv) {
     maxIterations: 3,
     delaySeconds: 3,
     verifyCommand: DEFAULT_VERIFY_COMMAND,
+    initMinFeatures: DEFAULT_INIT_MIN_FEATURES,
+    initMaxFeatures: DEFAULT_INIT_MAX_FEATURES,
+    initGranularity: DEFAULT_INIT_GRANULARITY,
     model: "",
     maxBudgetUsd: "",
     initOnly: false,
@@ -118,6 +140,12 @@ function parseArgs(argv) {
       args.delaySeconds = Number.parseInt(argv[++i], 10);
     } else if (token === "--verify-command") {
       args.verifyCommand = argv[++i];
+    } else if (token === "--init-min-features") {
+      args.initMinFeatures = Number.parseInt(argv[++i], 10);
+    } else if (token === "--init-max-features") {
+      args.initMaxFeatures = Number.parseInt(argv[++i], 10);
+    } else if (token === "--init-granularity") {
+      args.initGranularity = argv[++i];
     } else if (token === "--model") {
       args.model = argv[++i];
     } else if (token === "--max-budget-usd") {
@@ -140,12 +168,21 @@ function parseArgs(argv) {
   if (!Number.isFinite(args.delaySeconds) || args.delaySeconds < 0) {
     throw new Error("--delay-seconds must be a non-negative integer");
   }
+  if (!Number.isFinite(args.initMinFeatures) || args.initMinFeatures < 10) {
+    throw new Error("--init-min-features must be an integer >= 10");
+  }
+  if (!Number.isFinite(args.initMaxFeatures) || args.initMaxFeatures < args.initMinFeatures) {
+    throw new Error("--init-max-features must be an integer >= --init-min-features");
+  }
+  if (!INIT_GRANULARITY_MODES.has(args.initGranularity)) {
+    throw new Error("--init-granularity must be one of: coarse, balanced, fine");
+  }
 
   return args;
 }
 
 function printHelp() {
-  const help = `\nlong-agent - two-phase long-running agent harness\n\nUsage:\n  node scripts/long-agent.mjs [options]\n\nOptions:\n  --plan <path>            Development plan markdown file (default: ${DEFAULT_PLAN_PATH})\n  --state-dir <path>       State directory for feature list/logs (default: ${DEFAULT_STATE_DIR})\n  --max-iterations <n>     Coding iterations per run, after init (default: 3)\n  --delay-seconds <n>      Delay between coding iterations (default: 3)\n  --verify-command <cmd>   Verification command run by coding agent\n  --model <name>           Claude model alias/name (optional)\n  --max-budget-usd <num>   Budget cap passed to Claude CLI (optional)\n  --init-only              Run initializer phase only, then exit\n  --workspace <path>       Target repository root (default: cwd)\n  -h, --help               Show help\n`;
+  const help = `\nlong-agent - two-phase long-running agent harness\n\nUsage:\n  node scripts/long-agent.mjs [options]\n\nOptions:\n  --plan <path>              Development plan markdown file (default: ${DEFAULT_PLAN_PATH})\n  --state-dir <path>         State directory for feature list/logs (default: ${DEFAULT_STATE_DIR})\n  --max-iterations <n>       Coding iterations per run, after init (default: 3)\n  --delay-seconds <n>        Delay between coding iterations (default: 3)\n  --verify-command <cmd>     Verification command run by coding agent\n  --init-min-features <n>    Initializer minimum features (default: ${DEFAULT_INIT_MIN_FEATURES})\n  --init-max-features <n>    Initializer maximum features (default: ${DEFAULT_INIT_MAX_FEATURES})\n  --init-granularity <mode>  Backlog granularity: coarse|balanced|fine (default: ${DEFAULT_INIT_GRANULARITY})\n  --model <name>             Claude model alias/name (optional)\n  --max-budget-usd <num>     Budget cap passed to Claude CLI (optional)\n  --init-only                Run initializer phase only, then exit\n  --workspace <path>         Target repository root (default: cwd)\n  -h, --help                 Show help\n`;
   process.stdout.write(help);
 }
 
@@ -421,12 +458,18 @@ async function main() {
     stateDir: path.relative(workspace, stateDir),
     maxIterations: args.maxIterations,
     verifyCommand: args.verifyCommand,
+    initMinFeatures: args.initMinFeatures,
+    initMaxFeatures: args.initMaxFeatures,
+    initGranularity: args.initGranularity,
     model: args.model || "default"
   };
 
   process.stdout.write(`\n[long-agent] workspace: ${workspace}\n`);
   process.stdout.write(`[long-agent] plan: ${baseRunMeta.plan}\n`);
   process.stdout.write(`[long-agent] state dir: ${baseRunMeta.stateDir}\n`);
+  process.stdout.write(
+    `[long-agent] init features: ${args.initMinFeatures}-${args.initMaxFeatures} (${args.initGranularity})\n`
+  );
 
   if (!existsSync(featurePath)) {
     const planContent = await readText(planPath);
@@ -434,13 +477,17 @@ async function main() {
       PROJECT_ROOT: workspace,
       PLAN_FILE: baseRunMeta.plan,
       PLAN_CONTENT: planContent,
-      VERIFY_COMMAND: args.verifyCommand
+      VERIFY_COMMAND: args.verifyCommand,
+      INIT_MIN_FEATURES: String(args.initMinFeatures),
+      INIT_MAX_FEATURES: String(args.initMaxFeatures),
+      INIT_GRANULARITY: args.initGranularity,
+      INIT_GRANULARITY_GUIDE: getGranularityGuide(args.initGranularity)
     });
 
     process.stdout.write("\n[long-agent] phase=initializer running...\n");
     const initResponse = await runClaude({
       prompt,
-      schema: INIT_SCHEMA,
+      schema: createInitSchema(args.initMinFeatures, args.initMaxFeatures),
       workspace,
       model: args.model,
       maxBudgetUsd: args.maxBudgetUsd

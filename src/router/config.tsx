@@ -15,6 +15,7 @@ const NotFound = lazy(() => import('../pages/NotFound'));
 const AdminLayout = lazy(() => import('../pages/admin/AdminLayout'));
 const AdminLoginPage = lazy(() => import('../pages/admin/login/page'));
 const AdminContentPage = lazy(() => import('../pages/admin/content/page'));
+const AdminContentEditorPage = lazy(() => import('../pages/admin/content/editor/page'));
 
 const routes: RouteObject[] = [
   {
@@ -56,6 +57,10 @@ const routes: RouteObject[] = [
       {
         path: 'content',
         element: <AdminContentPage />,
+      },
+      {
+        path: 'content/editor/:pageKey',
+        element: <AdminContentEditorPage />,
       },
     ],
   },

@@ -47,6 +47,12 @@ pnpm agent:run
 pnpm agent:run -- --max-iterations 10 --model sonnet
 ```
 
+控制初始化粒度（推荐）：
+
+```bash
+pnpm agent:init -- --init-min-features 24 --init-max-features 36 --init-granularity balanced
+```
+
 使用自定义 plan：
 
 ```bash
@@ -61,6 +67,9 @@ pnpm agent:run -- --plan docs/development-plan.md
 - `--max-iterations <n>`：每次运行编码轮数（默认 `3`）
 - `--delay-seconds <n>`：轮次间延迟（默认 `3`）
 - `--verify-command <cmd>`：每轮校验命令（默认 `pnpm lint && pnpm type-check`）
+- `--init-min-features <n>`：初始化最小 feature 数（默认 `24`）
+- `--init-max-features <n>`：初始化最大 feature 数（默认 `36`）
+- `--init-granularity <mode>`：初始化粒度（`coarse|balanced|fine`，默认 `balanced`）
 - `--model <name>`：Claude 模型别名/名称
 - `--max-budget-usd <num>`：单次运行预算上限
 - `--init-only`：仅运行初始化阶段
@@ -71,3 +80,18 @@ pnpm agent:run -- --plan docs/development-plan.md
 2. 根据需要微调 feature list 的优先级和依赖关系。
 3. 再执行 `pnpm agent:run`，观察 `.long-agent/reports`。
 4. 发现 `needs_human` 时先做决策，再继续运行。
+
+## 7. 粒度建议
+- `balanced`（默认）：一个 feature 对应一个可验证的端到端能力，通常最适合持续迭代。
+- `coarse`：更少 feature、更大的能力包，适合你想减少任务数量时使用。
+- `fine`：更细拆分，适合高风险项目，但容易造成 backlog 过长。
+- 建议区间：
+  - 中型项目：`24~36`
+  - 复杂项目：`30~45`
+  - 若出现“每个 endpoint 一个任务”，说明拆分过细，优先提高粒度或收窄 feature 数范围。
+
+## 8. 重新初始化说明
+- `initializer` 仅在目标状态目录中不存在 `feature_list.json` 时触发。
+- 如果要按新粒度重建 backlog，可选做法：
+- 使用新状态目录：`pnpm agent:init -- --state-dir .long-agent-v2 --init-min-features 24 --init-max-features 36 --init-granularity balanced`
+- 或清理旧状态目录后再执行 `pnpm agent:init`。

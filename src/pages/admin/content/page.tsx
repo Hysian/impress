@@ -1,4 +1,8 @@
+import { useNavigate } from "react-router-dom";
+
 export default function ContentPage() {
+  const navigate = useNavigate();
+
   const pages = [
     { key: "home", label: "首页" },
     { key: "about", label: "关于我们" },
@@ -20,10 +24,7 @@ export default function ContentPage() {
             <button
               key={page.key}
               className="p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-center"
-              onClick={() => {
-                // Placeholder for future navigation to page editor
-                alert(`编辑 ${page.label} - 功能即将推出`);
-              }}
+              onClick={() => navigate(`/admin/content/editor/${page.key}`)}
             >
               <div className="text-sm font-medium text-gray-900">
                 {page.label}
