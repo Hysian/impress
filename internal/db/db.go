@@ -3,6 +3,7 @@ package db
 import (
   "context"
   "fmt"
+  "strings"
   "time"
 
   "gorm.io/driver/postgres"
@@ -26,16 +27,19 @@ type InitOptions struct {
 }
 
 // Init initializes a GORM database connection based on the DSN
-// Supports SQLite (file:*.db or :memory:) and PostgreSQL (postgres://)
+// Supports SQLite (file:*.db or :memory:) and PostgreSQL (postgres:// or libpq key=value)
 func Init(opts InitOptions) (*DB, error) {
   var dialector gorm.Dialector
 
-  // Determine database type from DSN
-  if len(opts.DSN) >= 8 && opts.DSN[:8] == "postgres" {
-    dialector = postgres.Open(opts.DSN)
+  dsn := strings.TrimSpace(opts.DSN)
+  // PostgreSQL: "postgres://...", "postgresql://...", or libpq "host=... dbname=..."
+  usePostgres := (len(dsn) >= 8 && (dsn[:8] == "postgres" || (len(dsn) >= 10 && dsn[:10] == "postgresql"))) ||
+    strings.Contains(dsn, "host=") || strings.Contains(dsn, "dbname=")
+  if usePostgres {
+    dialector = postgres.Open(dsn)
   } else {
     // Default to SQLite for file paths or :memory:
-    dialector = sqlite.Open(opts.DSN)
+    dialector = sqlite.Open(dsn)
   }
 
   // Configure GORM

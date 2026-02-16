@@ -1,6 +1,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { http } from "@/api/http";
+import { getPageSchema } from "@/schemas";
+import { FieldRenderer } from "@/components/admin/form-fields";
 
 interface DraftConfig {
   [key: string]: unknown;
@@ -33,6 +36,32 @@ interface ContentVersion {
   createdAt: string;
 }
 
+interface ApiErrorResponse {
+  error?: {
+    message?: string;
+  };
+}
+
+interface SaveDraftResponse {
+  version: number;
+  updatedAt: string;
+}
+
+interface PublishResponse {
+  publishedVersion: number;
+}
+
+interface RollbackResponse {
+  publishedVersion: number;
+  sourceVersion: number;
+}
+
+interface VersionHistoryResponse {
+  items?: ContentVersion[];
+}
+
+type EditorMode = "form" | "json";
+
 export default function ContentEditorPage() {
   const { pageKey } = useParams<{ pageKey: string }>();
   const navigate = useNavigate();
@@ -43,8 +72,13 @@ export default function ContentEditorPage() {
   const [error, setError] = useState<string | null>(null);
   const [document, setDocument] = useState<ContentDocument | null>(null);
   const [config, setConfig] = useState<string>("");
+  const [formData, setFormData] = useState<DraftConfig>({});
   const [isDirty, setIsDirty] = useState(false);
   const [lastSavedVersion, setLastSavedVersion] = useState<number | null>(null);
+
+  // Editor mode
+  const [editorMode, setEditorMode] = useState<EditorMode>("form");
+  const schema = pageKey ? getPageSchema(pageKey) : undefined;
 
   // Validation state
   const [validating, setValidating] = useState(false);
@@ -84,10 +118,11 @@ export default function ContentEditorPage() {
         throw new Error("未登录");
       }
 
-      const response = await fetch(`/admin/content/${pageKey}/draft`, {
+      const response = await http.get<ContentDocument | ApiErrorResponse>(`/admin/content/${pageKey}/draft`, {
         headers: {
           "Authorization": `Bearer ${accessToken}`,
         },
+        validateStatus: () => true,
       });
 
       if (response.status === 401) {
@@ -95,14 +130,15 @@ export default function ContentEditorPage() {
         return loadDraft();
       }
 
-      if (!response.ok) {
-        const errorData = await response.json();
+      if (response.status < 200 || response.status >= 300) {
+        const errorData = response.data as ApiErrorResponse;
         throw new Error(errorData.error?.message || "加载草稿失败");
       }
 
-      const data: ContentDocument = await response.json();
+      const data = response.data as ContentDocument;
       setDocument(data);
       setConfig(JSON.stringify(data.draftConfig, null, 2));
+      setFormData(data.draftConfig || {});
       setLastSavedVersion(data.draftVersion);
       setIsDirty(false);
     } catch (err) {
@@ -116,6 +152,33 @@ export default function ContentEditorPage() {
     loadDraft();
   }, [loadDraft]);
 
+  // Sync between modes on switch
+  const switchMode = (mode: EditorMode) => {
+    if (mode === editorMode) return;
+
+    if (mode === "json") {
+      // Form → JSON: serialize formData
+      setConfig(JSON.stringify(formData, null, 2));
+    } else {
+      // JSON → Form: parse JSON string
+      try {
+        const parsed = JSON.parse(config);
+        setFormData(parsed);
+      } catch {
+        setError("JSON 格式错误，无法切换到表单模式。请先修正 JSON。");
+        return;
+      }
+    }
+    setEditorMode(mode);
+  };
+
+  const getConfigForSave = (): DraftConfig => {
+    if (editorMode === "form") {
+      return formData;
+    }
+    return JSON.parse(config);
+  };
+
   const saveDraft = async () => {
     if (!pageKey || !document) return;
 
@@ -123,24 +186,22 @@ export default function ContentEditorPage() {
     setError(null);
 
     try {
-      const parsedConfig = JSON.parse(config);
+      const parsedConfig = getConfigForSave();
 
       const accessToken = localStorage.getItem("accessToken");
       if (!accessToken) {
         throw new Error("未登录");
       }
 
-      const response = await fetch(`/admin/content/${pageKey}/draft`, {
-        method: "PUT",
+      const response = await http.put<SaveDraftResponse | ApiErrorResponse>(`/admin/content/${pageKey}/draft`, {
+        config: parsedConfig,
+        changeNote: `更新草稿 ${pageLabels[pageKey] || pageKey}`,
+      }, {
         headers: {
           "Authorization": `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
           "If-Match": lastSavedVersion?.toString() || document.draftVersion.toString(),
         },
-        body: JSON.stringify({
-          config: parsedConfig,
-          changeNote: `更新草稿 ${pageLabels[pageKey] || pageKey}`,
-        }),
+        validateStatus: () => true,
       });
 
       if (response.status === 401) {
@@ -149,16 +210,16 @@ export default function ContentEditorPage() {
       }
 
       if (response.status === 409) {
-        const errorData = await response.json();
+        const errorData = response.data as ApiErrorResponse;
         throw new Error(`版本冲突：${errorData.error?.message || "其他用户已修改此页面，请刷新后重试"}`);
       }
 
-      if (!response.ok) {
-        const errorData = await response.json();
+      if (response.status < 200 || response.status >= 300) {
+        const errorData = response.data as ApiErrorResponse;
         throw new Error(errorData.error?.message || "保存草稿失败");
       }
 
-      const data = await response.json();
+      const data = response.data as SaveDraftResponse;
       setLastSavedVersion(data.version);
       setDocument({
         ...document,
@@ -184,6 +245,13 @@ export default function ContentEditorPage() {
     setPublishSuccess(null);
   };
 
+  const handleFormDataChange = (newData: DraftConfig) => {
+    setFormData(newData);
+    setIsDirty(true);
+    setValidationResult(null);
+    setPublishSuccess(null);
+  };
+
   const validateDraft = async () => {
     if (!pageKey) return;
 
@@ -192,20 +260,20 @@ export default function ContentEditorPage() {
     setPublishSuccess(null);
 
     try {
-      const parsedConfig = JSON.parse(config);
+      const parsedConfig = getConfigForSave();
 
       const accessToken = localStorage.getItem("accessToken");
       if (!accessToken) {
         throw new Error("未登录");
       }
 
-      const response = await fetch(`/admin/content/${pageKey}/validate`, {
-        method: "POST",
+      const response = await http.post<ValidationResult | ApiErrorResponse>(`/admin/content/${pageKey}/validate`, {
+        config: parsedConfig,
+      }, {
         headers: {
           "Authorization": `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
         },
-        body: JSON.stringify({ config: parsedConfig }),
+        validateStatus: () => true,
       });
 
       if (response.status === 401) {
@@ -213,12 +281,12 @@ export default function ContentEditorPage() {
         return validateDraft();
       }
 
-      if (!response.ok) {
-        const errorData = await response.json();
+      if (response.status < 200 || response.status >= 300) {
+        const errorData = response.data as ApiErrorResponse;
         throw new Error(errorData.error?.message || "验证失败");
       }
 
-      const result: ValidationResult = await response.json();
+      const result = response.data as ValidationResult;
       setValidationResult(result);
     } catch (err) {
       if (err instanceof SyntaxError) {
@@ -248,16 +316,14 @@ export default function ContentEditorPage() {
         throw new Error("未登录");
       }
 
-      const response = await fetch(`/admin/content/${pageKey}/publish`, {
-        method: "POST",
+      const response = await http.post<PublishResponse | ApiErrorResponse>(`/admin/content/${pageKey}/publish`, {
+        expectedDraftVersion: document.draftVersion,
+        changeNote: `发布 ${pageLabels[pageKey] || pageKey}`,
+      }, {
         headers: {
           "Authorization": `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          expectedDraftVersion: document.draftVersion,
-          changeNote: `发布 ${pageLabels[pageKey] || pageKey}`,
-        }),
+        validateStatus: () => true,
       });
 
       if (response.status === 401) {
@@ -266,16 +332,16 @@ export default function ContentEditorPage() {
       }
 
       if (response.status === 422) {
-        const errorData = await response.json();
+        const errorData = response.data as ApiErrorResponse;
         throw new Error(`发布被阻止：${errorData.error?.message || "存在未完成的翻译或验证错误"}`);
       }
 
-      if (!response.ok) {
-        const errorData = await response.json();
+      if (response.status < 200 || response.status >= 300) {
+        const errorData = response.data as ApiErrorResponse;
         throw new Error(errorData.error?.message || "发布失败");
       }
 
-      const data = await response.json();
+      const data = response.data as PublishResponse;
       setPublishSuccess(`发布成功！版本：${data.publishedVersion}`);
       setValidationResult(null);
       await loadDraft();
@@ -297,10 +363,15 @@ export default function ContentEditorPage() {
         throw new Error("未登录");
       }
 
-      const response = await fetch(`/admin/content/${pageKey}/versions?page=1&pageSize=20`, {
+      const response = await http.get<VersionHistoryResponse | ApiErrorResponse>(`/admin/content/${pageKey}/versions`, {
+        params: {
+          page: 1,
+          pageSize: 20,
+        },
         headers: {
           "Authorization": `Bearer ${accessToken}`,
         },
+        validateStatus: () => true,
       });
 
       if (response.status === 401) {
@@ -308,12 +379,12 @@ export default function ContentEditorPage() {
         return loadVersionHistory();
       }
 
-      if (!response.ok) {
-        const errorData = await response.json();
+      if (response.status < 200 || response.status >= 300) {
+        const errorData = response.data as ApiErrorResponse;
         throw new Error(errorData.error?.message || "加载版本历史失败");
       }
 
-      const data = await response.json();
+      const data = response.data as VersionHistoryResponse;
       setVersions(data.items || []);
       setShowVersionHistory(true);
     } catch (err) {
@@ -345,15 +416,13 @@ export default function ContentEditorPage() {
         throw new Error("未登录");
       }
 
-      const response = await fetch(`/admin/content/${pageKey}/rollback/${version}`, {
-        method: "POST",
+      const response = await http.post<RollbackResponse | ApiErrorResponse>(`/admin/content/${pageKey}/rollback/${version}`, {
+        changeNote: rollbackNote,
+      }, {
         headers: {
           "Authorization": `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          changeNote: rollbackNote,
-        }),
+        validateStatus: () => true,
       });
 
       if (response.status === 401) {
@@ -361,12 +430,12 @@ export default function ContentEditorPage() {
         return rollbackToVersion(version);
       }
 
-      if (!response.ok) {
-        const errorData = await response.json();
+      if (response.status < 200 || response.status >= 300) {
+        const errorData = response.data as ApiErrorResponse;
         throw new Error(errorData.error?.message || "回滚失败");
       }
 
-      const data = await response.json();
+      const data = response.data as RollbackResponse;
       setPublishSuccess(`回滚成功！已创建新版本：${data.publishedVersion}（从版本 ${data.sourceVersion} 回滚）`);
       setShowVersionHistory(false);
       setSelectedVersion(null);
@@ -451,27 +520,77 @@ export default function ContentEditorPage() {
         {/* Editor Panel */}
         <div className="lg:col-span-2">
           <div className="bg-white shadow rounded-lg p-6">
-            <div className="mb-4">
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">配置编辑器</h2>
-              <p className="text-sm text-gray-600">
-                编辑页面配置（JSON 格式）。支持中英文双语字段，格式示例：
-                <code className="ml-2 text-xs bg-gray-100 px-2 py-1 rounded">
-                  {"{ \"zh\": \"中文\", \"en\": \"English\" }"}
-                </code>
-              </p>
+            {/* Mode switch */}
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">配置编辑器</h2>
+              <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => switchMode("form")}
+                  className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                    editorMode === "form"
+                      ? "bg-white text-blue-700 shadow-sm font-medium"
+                      : "text-gray-600 hover:text-gray-800"
+                  }`}
+                >
+                  表单模式
+                </button>
+                <button
+                  onClick={() => switchMode("json")}
+                  className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                    editorMode === "json"
+                      ? "bg-white text-blue-700 shadow-sm font-medium"
+                      : "text-gray-600 hover:text-gray-800"
+                  }`}
+                >
+                  JSON 模式
+                </button>
+              </div>
             </div>
 
-            <textarea
-              value={config}
-              onChange={(e) => handleConfigChange(e.target.value)}
-              className="w-full h-96 font-mono text-sm p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="输入 JSON 配置..."
-              spellCheck={false}
-            />
-
-            <div className="mt-4 text-xs text-gray-500">
-              提示：保存前请确保 JSON 格式正确。双语字段应包含 zh 和 en 属性。
-            </div>
+            {editorMode === "form" && schema ? (
+              <div className="space-y-6">
+                {Object.entries(schema.fields).map(([key, descriptor]) => (
+                  <FieldRenderer
+                    key={key}
+                    descriptor={descriptor}
+                    value={formData[key]}
+                    onChange={(v) => {
+                      handleFormDataChange({ ...formData, [key]: v });
+                    }}
+                    path={key}
+                  />
+                ))}
+              </div>
+            ) : editorMode === "form" && !schema ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500 mb-2">该页面暂无预设 Schema，请使用 JSON 模式编辑</p>
+                <button
+                  onClick={() => setEditorMode("json")}
+                  className="text-blue-600 hover:text-blue-800 text-sm"
+                >
+                  切换到 JSON 模式
+                </button>
+              </div>
+            ) : (
+              <>
+                <p className="text-sm text-gray-600 mb-3">
+                  编辑页面配置（JSON 格式）。支持中英文双语字段，格式示例：
+                  <code className="ml-2 text-xs bg-gray-100 px-2 py-1 rounded">
+                    {"{ \"zh\": \"中文\", \"en\": \"English\" }"}
+                  </code>
+                </p>
+                <textarea
+                  value={config}
+                  onChange={(e) => handleConfigChange(e.target.value)}
+                  className="w-full h-96 font-mono text-sm p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="输入 JSON 配置..."
+                  spellCheck={false}
+                />
+                <div className="mt-4 text-xs text-gray-500">
+                  提示：保存前请确保 JSON 格式正确。双语字段应包含 zh 和 en 属性。
+                </div>
+              </>
+            )}
           </div>
         </div>
 

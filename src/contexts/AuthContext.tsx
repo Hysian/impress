@@ -1,4 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
+import axios from "axios";
+import { http } from "@/api/http";
 
 interface User {
   id: string;
@@ -13,6 +15,11 @@ interface AuthContextValue {
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshToken: () => Promise<void>;
+}
+
+interface LoginResponse {
+  accessToken: string;
+  refreshToken: string;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -46,21 +53,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
       throw new Error("No refresh token available");
     }
 
-    const response = await fetch("/auth/refresh", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ refreshToken: refreshTokenValue }),
-    });
-
-    if (!response.ok) {
+    try {
+      const response = await http.post<LoginResponse>("/auth/refresh", {
+        refreshToken: refreshTokenValue,
+      });
+      localStorage.setItem("accessToken", response.data.accessToken);
+    } catch {
       clearTokens();
       throw new Error("Token refresh failed");
     }
-
-    const data = await response.json();
-    localStorage.setItem("accessToken", data.accessToken);
   }, [clearTokens]);
 
   // Session restore on mount
@@ -73,39 +74,31 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       try {
-        const response = await fetch("/auth/me", {
+        const response = await http.get<User>("/auth/me", {
           headers: {
             "Authorization": `Bearer ${accessToken}`,
           },
         });
-
-        if (!response.ok) {
-          // Try to refresh token
-          const refreshTokenValue = localStorage.getItem("refreshToken");
-          if (refreshTokenValue) {
+        setUser(response.data);
+      } catch (error) {
+        const refreshTokenValue = localStorage.getItem("refreshToken");
+        if (refreshTokenValue) {
+          try {
             await refreshTokenInternal();
-            // Retry me endpoint
-            const retryResponse = await fetch("/auth/me", {
+            const retryResponse = await http.get<User>("/auth/me", {
               headers: {
                 "Authorization": `Bearer ${localStorage.getItem("accessToken")}`,
               },
             });
-            if (retryResponse.ok) {
-              const data = await retryResponse.json();
-              setUser(data);
-            } else {
-              clearTokens();
-            }
-          } else {
+            setUser(retryResponse.data);
+          } catch (retryError) {
+            console.error("Session restore failed:", retryError);
             clearTokens();
           }
         } else {
-          const data = await response.json();
-          setUser(data);
+          console.error("Session restore failed:", error);
+          clearTokens();
         }
-      } catch (error) {
-        console.error("Session restore failed:", error);
-        clearTokens();
       } finally {
         setIsLoading(false);
       }
@@ -115,35 +108,29 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [clearTokens, refreshTokenInternal]);
 
   const login = async (username: string, password: string) => {
-    const response = await fetch("/auth/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ username, password }),
-    });
+    try {
+      const response = await http.post<LoginResponse>("/auth/login", {
+        username,
+        password,
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error?.message || "登录失败");
-    }
+      // Store tokens
+      localStorage.setItem("accessToken", response.data.accessToken);
+      localStorage.setItem("refreshToken", response.data.refreshToken);
 
-    const data = await response.json();
-
-    // Store tokens
-    localStorage.setItem("accessToken", data.accessToken);
-    localStorage.setItem("refreshToken", data.refreshToken);
-
-    // Fetch user info
-    const meResponse = await fetch("/auth/me", {
-      headers: {
-        "Authorization": `Bearer ${data.accessToken}`,
-      },
-    });
-
-    if (meResponse.ok) {
-      const userData = await meResponse.json();
-      setUser(userData);
+      // Fetch user info
+      const meResponse = await http.get<User>("/auth/me", {
+        headers: {
+          "Authorization": `Bearer ${response.data.accessToken}`,
+        },
+      });
+      setUser(meResponse.data);
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const errorData = error.response?.data as { error?: { message?: string } } | undefined;
+        throw new Error(errorData?.error?.message || "登录失败");
+      }
+      throw error;
     }
   };
 
@@ -155,12 +142,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const refreshTokenValue = localStorage.getItem("refreshToken");
     if (refreshTokenValue) {
       try {
-        await fetch("/auth/logout", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ refreshToken: refreshTokenValue }),
+        await http.post("/auth/logout", {
+          refreshToken: refreshTokenValue,
         });
       } catch (error) {
         console.error("Logout API call failed:", error);

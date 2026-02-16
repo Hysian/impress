@@ -9,12 +9,14 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm/logger"
 
 	"blotting-consultancy/internal/db"
 	authHandler "blotting-consultancy/internal/handler/auth"
 	contentHandler "blotting-consultancy/internal/handler/content"
+	mediaHandler "blotting-consultancy/internal/handler/media"
 	publicHandler "blotting-consultancy/internal/handler/public"
 	"blotting-consultancy/internal/middleware"
 	"blotting-consultancy/internal/model"
@@ -86,6 +88,7 @@ func main() {
 		&model.RefreshToken{},
 		&model.ContentDocument{},
 		&model.ContentVersion{},
+		&model.Media{},
 	); err != nil {
 		log.Error("Failed to run migrations", "error", err)
 		os.Exit(1)
@@ -106,6 +109,7 @@ func main() {
 	refreshTokenRepo := repository.NewGormRefreshTokenRepository(database.DB)
 	contentDocRepo := repository.NewGormContentDocumentRepository(database.DB)
 	contentVersionRepo := repository.NewGormContentVersionRepository(database.DB)
+	mediaRepo := repository.NewGormMediaRepository(database.DB)
 	log.Info("Repositories initialized")
 
 	// Run seed (idempotent)
@@ -143,6 +147,7 @@ func main() {
 		auditLog,
 	)
 	publicHandlerInst := publicHandler.NewHandler(contentDocRepo)
+	mediaHandlerInst := mediaHandler.NewHandler(mediaRepo, cfg.UploadDir, "")
 	log.Info("Handlers initialized")
 
 	// Setup Gin router
@@ -152,9 +157,22 @@ func main() {
 	router := gin.New()
 
 	// Global middleware (order matters!)
-	router.Use(gin.Recovery())                  // Panic recovery
-	router.Use(ginLogger(log))                  // Request logging
-	router.Use(apierror.ErrorHandler())         // API error handling
+	router.Use(gin.Recovery()) // Panic recovery
+	router.Use(ginLogger(log)) // Request logging
+
+	corsConfig := cors.Config{
+		AllowMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders: []string{"Origin", "Content-Type", "Authorization", "If-Match"},
+		MaxAge:       10 * time.Minute,
+	}
+	if len(cfg.CORSAllowedOrigins) > 0 {
+		corsConfig.AllowOrigins = cfg.CORSAllowedOrigins
+	} else {
+		corsConfig.AllowAllOrigins = true
+		log.Warn("CORS allowed origins not configured; falling back to allow all origins")
+	}
+	router.Use(cors.New(corsConfig))
+	router.Use(apierror.ErrorHandler()) // API error handling
 
 	// Health endpoint (no auth required)
 	router.GET("/health", func(c *gin.Context) {
@@ -254,7 +272,15 @@ func main() {
 		// Version history
 		adminGroup.GET("/content/:pageKey/versions", contentHandlerInst.GetVersions)
 		adminGroup.GET("/content/:pageKey/versions/:version", contentHandlerInst.GetVersionDetail)
+
+		// Media management
+		adminGroup.POST("/media/upload", mediaHandlerInst.Upload)
+		adminGroup.GET("/media", mediaHandlerInst.List)
+		adminGroup.DELETE("/media/:id", mediaHandlerInst.Delete)
 	}
+
+	// Serve uploaded files statically
+	router.Static("/uploads", cfg.UploadDir)
 
 	log.Info("Router configured with all routes")
 

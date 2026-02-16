@@ -3,6 +3,9 @@
  * Handles fetching published page configurations from the backend
  */
 
+import axios from "axios";
+import { http } from "@/api/http";
+
 export type Locale = "zh" | "en";
 
 export type PageKey =
@@ -39,34 +42,25 @@ export async function fetchPublicContent(
   pageKey: PageKey,
   locale: Locale = "zh"
 ): Promise<PublicPageResponse> {
-  const url = `/public/content/${pageKey}?locale=${locale}`;
-
-  const response = await fetch(url, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    let errorData: PublicContentError;
-    try {
-      const json = await response.json();
-      errorData = json.error || {
-        code: "UNKNOWN_ERROR",
-        message: `Failed to fetch content: ${response.statusText}`,
-      };
-    } catch {
-      errorData = {
+  try {
+    const response = await http.get<PublicPageResponse>(`/public/content/${pageKey}`, {
+      params: { locale },
+    });
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const apiError = (error.response?.data as { error?: PublicContentError } | undefined)?.error;
+      throw apiError || {
         code: "NETWORK_ERROR",
-        message: `HTTP ${response.status}: ${response.statusText}`,
+        message: error.message || "Request failed",
       };
     }
-    throw errorData;
-  }
 
-  const data: PublicPageResponse = await response.json();
-  return data;
+    throw {
+      code: "UNKNOWN_ERROR",
+      message: "Unknown error occurred",
+    } as PublicContentError;
+  }
 }
 
 /**
