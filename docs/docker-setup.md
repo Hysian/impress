@@ -189,7 +189,7 @@ If frontend shows blank page:
 If Go build fails:
 
 1. Ensure `go.mod` and `go.sum` are up to date
-2. Check Go version in `Dockerfile.backend` matches `go.mod`
+2. Check Go version in `backend/Dockerfile` matches `backend/go.mod`
 3. Rebuild with no cache: `docker-compose build --no-cache backend`
 
 ### Volume Permission Issues
@@ -214,8 +214,11 @@ If services fail dependency health checks:
 To build production-ready images:
 
 ```bash
-# Build frontend production image
-docker build -f Dockerfile.frontend --target production -t blotting-frontend:prod .
+# Build frontend production image (from repo root, if Dockerfile.frontend exists)
+# docker build -f Dockerfile.frontend --target production -t blotting-frontend:prod frontend
+
+# Build backend production image
+# docker build -t blotting-backend:prod backend
 
 # Test production frontend
 docker run -p 80:80 blotting-frontend:prod

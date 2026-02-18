@@ -54,9 +54,9 @@ fi
 export SOURCE_DB_DSN
 export TARGET_DB_DSN
 
-# Run migration script
-cd "$PROJECT_ROOT"
-go run scripts/migrate-sqlite-to-postgres.go
+# Run migration script (from backend module)
+cd "$PROJECT_ROOT/backend"
+go run ./scripts/migrate-sqlite-to-postgres.go
 
 # Exit with same status as migration script
 exit $?

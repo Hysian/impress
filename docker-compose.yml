@@ -24,8 +24,8 @@ services:
   # Backend API service (Go/Gin/GORM)
   backend:
     build:
-      context: .
-      dockerfile: Dockerfile.backend
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: blotting-backend
     environment:
       PORT: 8080
@@ -40,11 +40,11 @@ services:
         condition: service_healthy
     volumes:
       # Mount source for live reload during development (optional)
-      - ./cmd:/app/cmd
-      - ./internal:/app/internal
-      - ./pkg:/app/pkg
-      - ./go.mod:/app/go.mod
-      - ./go.sum:/app/go.sum
+      - ./backend/cmd:/app/cmd
+      - ./backend/internal:/app/internal
+      - ./backend/pkg:/app/pkg
+      - ./backend/go.mod:/app/go.mod
+      - ./backend/go.sum:/app/go.sum
     networks:
       - blotting-network
     restart: unless-stopped
@@ -58,7 +58,7 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: Dockerfile.frontend
+      dockerfile: frontend/Dockerfile
       target: development
     container_name: blotting-frontend
     environment:
@@ -68,17 +68,16 @@ services:
     depends_on:
       - backend
     volumes:
-      # Mount source for hot module reload
-      - ./src:/app/src
-      - ./public:/app/public
-      - ./index.html:/app/index.html
-      - ./vite.config.ts:/app/vite.config.ts
-      - ./tsconfig.json:/app/tsconfig.json
-      - ./tsconfig.app.json:/app/tsconfig.app.json
-      - ./tailwind.config.ts:/app/tailwind.config.ts
-      - ./postcss.config.ts:/app/postcss.config.ts
-      # Prevent node_modules from being overwritten
-      - /app/node_modules
+      # Mount source for hot module reload (app lives at /app/frontend in container)
+      - ./frontend/src:/app/frontend/src
+      - ./frontend/public:/app/frontend/public
+      - ./frontend/index.html:/app/frontend/index.html
+      - ./frontend/vite.config.ts:/app/frontend/vite.config.ts
+      - ./frontend/tsconfig.app.json:/app/frontend/tsconfig.app.json
+      - ./frontend/tsconfig.node.json:/app/frontend/tsconfig.node.json
+      - ./frontend/tailwind.config.ts:/app/frontend/tailwind.config.ts
+      - ./frontend/postcss.config.ts:/app/frontend/postcss.config.ts
+      - /app/frontend/node_modules
     networks:
       - blotting-network
     restart: unless-stopped

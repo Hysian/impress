@@ -6,9 +6,9 @@ import (
 	"log"
 	"os"
 
-	"blotting-cms/internal/db"
-	"blotting-cms/internal/model"
-	"blotting-cms/internal/repository"
+	"blotting-consultancy/internal/db"
+	"blotting-consultancy/internal/model"
+	"blotting-consultancy/internal/repository"
 )
 
 func main() {

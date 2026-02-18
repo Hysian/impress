@@ -7,7 +7,8 @@ set -euo pipefail
 # Script directory and project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-cd "${PROJECT_ROOT}"
+BACKEND_DIR="${PROJECT_ROOT}/backend"
+cd "${BACKEND_DIR}"
 
 # Configuration
 VERSION="${VERSION:-$(git describe --tags --always --dirty 2>/dev/null || echo "v0.0.0-$(git rev-parse --short HEAD 2>/dev/null || echo 'unknown')")}"
@@ -30,8 +31,8 @@ echo "Go Version: ${GO_VERSION}"
 echo "Artifact Output: ${ARTIFACTS_DIR}/${ARTIFACT_NAME}"
 echo "=========================================="
 
-# Create artifacts directory
-mkdir -p "${ARTIFACTS_DIR}"
+# Create artifacts directory (at project root)
+mkdir -p "${PROJECT_ROOT}/artifacts"
 
 # Verify dependencies
 echo "Verifying dependencies..."
@@ -89,7 +90,7 @@ else
 fi
 
 # Create symlink to latest
-cd "${ARTIFACTS_DIR}"
+cd "${PROJECT_ROOT}/artifacts"
 ln -sf "${BINARY_NAME}" blotting-api-latest
 ln -sf "${ARTIFACT_NAME}" backend-latest.tar.gz
 if [ -f "${ARTIFACT_NAME}.sha256" ]; then

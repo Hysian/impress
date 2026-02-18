@@ -22,6 +22,8 @@ go.work
 go.work.sum
 /server
 /cmd/server/server
+backend/coverage.out
+backend/out
 
 # Docker
 .env

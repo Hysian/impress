@@ -6,7 +6,7 @@ settings:
 
 importers:
 
-  .:
+  frontend:
     dependencies:
       '@stripe/react-stripe-js':
         specifier: 4.0.2

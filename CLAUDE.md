@@ -4,8 +4,10 @@ This file guides Claude Code (`claude` CLI) when working in this repository.
 
 ## Project Overview
 
-印迹官网 (Blotting Consultancy) is a bilingual (`zh`/`en`) React SPA.
-The current codebase is frontend-only. A Go/Gin/GORM CMS backend is planned and documented in `docs/`.
+印迹官网 (Blotting Consultancy) is a bilingual (`zh`/`en`) React SPA with a Go/Gin/GORM CMS backend.
+- **frontend/** — Vite + React 前端工程
+- **backend/** — Go/Gin 后端工程
+- **docs/**, **scripts/**, **.github/** — 文档、脚本与 CI/CD（位于仓库根目录）
 
 Primary planning docs (read in this order):
 1. `docs/development-plan.md` (execution plan for long-running agent)
@@ -38,13 +40,14 @@ Default verification command: `pnpm lint && pnpm type-check`.
 
 ## Stack And Structure
 
-- Frontend: React 19 + TypeScript + Vite 7 + Tailwind CSS 3 + React Router 7 + i18next
-- Routing: `src/router/config.tsx` (lazy routes)
-- Shared UI: `src/components/feature/`
-- Pages: `src/pages/*/page.tsx`
-- i18n resources: `src/i18n/local/{zh,en}/common.ts`
-- Alias: `@` -> `src`
-- Generated files (do not edit manually): `out/`, `auto-imports.d.ts`
+- Frontend (in `frontend/`): React 19 + TypeScript + Vite 7 + Tailwind CSS 3 + React Router 7 + i18next
+- Routing: `frontend/src/router/config.tsx` (lazy routes)
+- Shared UI: `frontend/src/components/feature/`
+- Pages: `frontend/src/pages/*/page.tsx`
+- i18n resources: `frontend/src/i18n/local/{zh,en}/common.ts`
+- Alias: `@` -> `src` (within frontend)
+- Generated files (do not edit manually): `frontend/out/`, `frontend/auto-imports.d.ts`
+- Backend (in `backend/`): Go, `cmd/server`, `internal/`, `pkg/`
 
 ## Long-Running Agent Protocol
 
@@ -91,7 +94,7 @@ If status is `needs_human`, stop further autonomous iterations.
 
 ## Project-Specific Constraints
 
-- Current repository has no backend code yet; backend work should follow the phase plan in `docs/development-plan.md`.
+- Backend lives in `backend/`; follow `docs/development-plan.md` for backend phases.
 - Keep frontend behavior stable while introducing config-driven rendering.
 - Maintain bilingual behavior and existing fallback (`zh` fallback for runtime display).
 - No test framework is configured yet; if tests are added, use Vitest and `*.test.tsx` naming.

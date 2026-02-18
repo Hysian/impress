@@ -7,12 +7,13 @@ set -euo pipefail
 # Script directory and project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-cd "${PROJECT_ROOT}"
+FRONTEND_DIR="${PROJECT_ROOT}/frontend"
+cd "${FRONTEND_DIR}"
 
 # Configuration
 VERSION="${VERSION:-$(git describe --tags --always --dirty 2>/dev/null || echo "v0.0.0-$(git rev-parse --short HEAD 2>/dev/null || echo 'unknown')")}"
 BUILD_TIME="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-DIST_DIR="${PROJECT_ROOT}/dist"
+DIST_DIR="${FRONTEND_DIR}/out"
 ARTIFACTS_DIR="${PROJECT_ROOT}/artifacts"
 ARTIFACT_NAME="frontend-${VERSION}.tar.gz"
 
