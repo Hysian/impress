@@ -1,0 +1,341 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: ["Quality Gate"]
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      git_ref:
+        description: "Git ref (branch, tag, or SHA) to deploy"
+        required: false
+        default: "main"
+      version:
+        description: "Version label (default: v0.0.0-<short-sha>)"
+        required: false
+      deploy_method:
+        description: "Deployment transport"
+        required: true
+        default: "ssh"
+        type: choice
+        options:
+          - ssh
+          - http
+      environment:
+        description: "Deployment environment name"
+        required: true
+        default: "production"
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    name: Resolve Deployment Context
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       (github.event.workflow_run.head_branch == 'main' || github.event.workflow_run.head_branch == 'master'))
+    outputs:
+      git_ref: ${{ steps.resolve.outputs.git_ref }}
+      version: ${{ steps.resolve.outputs.version }}
+      deploy_method: ${{ steps.resolve.outputs.deploy_method }}
+      deploy_env: ${{ steps.resolve.outputs.deploy_env }}
+      source_branch: ${{ steps.resolve.outputs.source_branch }}
+    steps:
+      - name: Resolve metadata
+        id: resolve
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          RUN_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          INPUT_REF: ${{ github.event.inputs.git_ref }}
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+          INPUT_METHOD: ${{ github.event.inputs.deploy_method }}
+          INPUT_ENV: ${{ github.event.inputs.environment }}
+          DEFAULT_METHOD: ${{ vars.DEPLOY_METHOD }}
+          DEFAULT_ENV: ${{ vars.DEPLOY_ENVIRONMENT }}
+        run: |
+          set -euo pipefail
+
+          if [ "${EVENT_NAME}" = "workflow_run" ]; then
+            git_ref="${RUN_SHA}"
+            source_branch="${RUN_BRANCH}"
+          else
+            git_ref="${INPUT_REF:-${GITHUB_SHA}}"
+            source_branch="${GITHUB_REF_NAME}"
+          fi
+
+          version="${INPUT_VERSION:-v0.0.0-${git_ref:0:7}}"
+          deploy_method="${INPUT_METHOD:-${DEFAULT_METHOD:-ssh}}"
+          deploy_env="${INPUT_ENV:-${DEFAULT_ENV:-production}}"
+
+          if [ "${deploy_method}" != "ssh" ] && [ "${deploy_method}" != "http" ]; then
+            echo "Unsupported deploy method: ${deploy_method}"
+            exit 1
+          fi
+
+          {
+            echo "git_ref=${git_ref}"
+            echo "version=${version}"
+            echo "deploy_method=${deploy_method}"
+            echo "deploy_env=${deploy_env}"
+            echo "source_branch=${source_branch}"
+          } >> "${GITHUB_OUTPUT}"
+
+  build:
+    name: Build Release Artifacts
+    runs-on: ubuntu-latest
+    needs: prepare
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.git_ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache: true
+
+      - name: Build frontend artifact
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: ./scripts/build-frontend.sh
+
+      - name: Build backend artifact
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: ./scripts/build-backend.sh
+
+      - name: Upload deployment artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts-${{ needs.prepare.outputs.version }}
+          path: |
+            artifacts/frontend-${{ needs.prepare.outputs.version }}.tar.gz
+            artifacts/frontend-${{ needs.prepare.outputs.version }}.tar.gz.sha256
+            artifacts/backend-${{ needs.prepare.outputs.version }}.tar.gz
+            artifacts/backend-${{ needs.prepare.outputs.version }}.tar.gz.sha256
+          retention-days: 14
+
+  deploy-ssh:
+    name: Deploy via SSH
+    runs-on: ubuntu-latest
+    needs: [prepare, build]
+    if: needs.prepare.outputs.deploy_method == 'ssh'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.git_ref }}
+
+      - name: Validate required SSH secrets
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DEPLOY_HOST}" ]; then
+            echo "Missing required secret: DEPLOY_HOST"
+            exit 1
+          fi
+          if [ -z "${SSH_PRIVATE_KEY}" ]; then
+            echo "Missing required secret: DEPLOY_SSH_PRIVATE_KEY"
+            exit 1
+          fi
+
+      - name: Setup SSH key
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "${SSH_PRIVATE_KEY}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          if [ -n "${DEPLOY_KNOWN_HOSTS}" ]; then
+            printf '%s\n' "${DEPLOY_KNOWN_HOSTS}" > ~/.ssh/known_hosts
+          else
+            ssh-keyscan -H "${DEPLOY_HOST}" >> ~/.ssh/known_hosts
+          fi
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts-${{ needs.prepare.outputs.version }}
+          path: artifacts
+
+      - name: Deploy frontend and backend
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          ENVIRONMENT: ${{ needs.prepare.outputs.deploy_env }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_ROOT: ${{ secrets.DEPLOY_ROOT }}
+          BACKEND_SERVICE: ${{ vars.BACKEND_SERVICE }}
+          BACKEND_HEALTH_URL: ${{ vars.BACKEND_HEALTH_URL }}
+          DEPLOY_AUTO_APPROVE: "true"
+        run: ./scripts/deploy.sh
+
+  deploy-http:
+    name: Deploy via HTTP API
+    runs-on: ubuntu-latest
+    needs: [prepare, build]
+    if: needs.prepare.outputs.deploy_method == 'http'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.git_ref }}
+
+      - name: Validate required HTTP secrets
+        env:
+          DEPLOY_HTTP_ENDPOINT: ${{ secrets.DEPLOY_HTTP_ENDPOINT }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DEPLOY_HTTP_ENDPOINT}" ]; then
+            echo "Missing required secret: DEPLOY_HTTP_ENDPOINT"
+            exit 1
+          fi
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts-${{ needs.prepare.outputs.version }}
+          path: artifacts
+
+      - name: Deploy artifacts through API
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          ENVIRONMENT: ${{ needs.prepare.outputs.deploy_env }}
+          DEPLOY_HTTP_ENDPOINT: ${{ secrets.DEPLOY_HTTP_ENDPOINT }}
+          DEPLOY_HTTP_TOKEN: ${{ secrets.DEPLOY_HTTP_TOKEN }}
+        run: ./scripts/deploy-http.sh
+
+  notify:
+    name: Deployment Notification
+    runs-on: ubuntu-latest
+    needs: [prepare, build, deploy-ssh, deploy-http]
+    if: always() && needs.prepare.result != 'skipped'
+    env:
+      NOTIFY_WEBHOOK_URL: ${{ secrets.NOTIFY_WEBHOOK_URL }}
+      SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+      SMTP_PORT: ${{ secrets.SMTP_PORT }}
+      SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+      NOTIFY_EMAIL_TO: ${{ secrets.NOTIFY_EMAIL_TO }}
+      NOTIFY_EMAIL_FROM: ${{ secrets.NOTIFY_EMAIL_FROM }}
+    steps:
+      - name: Compute deployment status
+        id: status
+        env:
+          BUILD_RESULT: ${{ needs.build.result }}
+          SSH_RESULT: ${{ needs.deploy-ssh.result }}
+          HTTP_RESULT: ${{ needs.deploy-http.result }}
+        run: |
+          set -euo pipefail
+          status="success"
+          summary="Deployment succeeded"
+
+          if [ "${BUILD_RESULT}" != "success" ]; then
+            status="failure"
+            summary="Build failed before deployment"
+          elif [ "${SSH_RESULT}" = "failure" ] || [ "${HTTP_RESULT}" = "failure" ]; then
+            status="failure"
+            summary="Deployment step failed"
+          elif [ "${SSH_RESULT}" = "success" ] || [ "${HTTP_RESULT}" = "success" ]; then
+            status="success"
+            summary="Deployment succeeded"
+          else
+            status="skipped"
+            summary="Deployment skipped"
+          fi
+
+          {
+            echo "status=${status}"
+            echo "summary=${summary}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Add job summary
+        run: |
+          echo "## Deployment Result" >> "${GITHUB_STEP_SUMMARY}"
+          echo "" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Status: **${{ steps.status.outputs.status }}**" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Summary: ${{ steps.status.outputs.summary }}" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Environment: ${{ needs.prepare.outputs.deploy_env }}" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Method: ${{ needs.prepare.outputs.deploy_method }}" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Version: ${{ needs.prepare.outputs.version }}" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Source Branch: ${{ needs.prepare.outputs.source_branch }}" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Send webhook notification
+        if: ${{ env.NOTIFY_WEBHOOK_URL != '' }}
+        continue-on-error: true
+        env:
+          DEPLOY_STATUS: ${{ steps.status.outputs.status }}
+          DEPLOY_SUMMARY: ${{ steps.status.outputs.summary }}
+          DEPLOY_ENV: ${{ needs.prepare.outputs.deploy_env }}
+          DEPLOY_METHOD: ${{ needs.prepare.outputs.deploy_method }}
+          DEPLOY_VERSION: ${{ needs.prepare.outputs.version }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          payload=$(cat <<JSON
+          {
+            "status": "${DEPLOY_STATUS}",
+            "summary": "${DEPLOY_SUMMARY}",
+            "environment": "${DEPLOY_ENV}",
+            "method": "${DEPLOY_METHOD}",
+            "version": "${DEPLOY_VERSION}",
+            "repository": "${REPO}",
+            "runUrl": "${RUN_URL}"
+          }
+          JSON
+          )
+
+          curl --silent --show-error --fail \
+            -H "Content-Type: application/json" \
+            -X POST \
+            -d "${payload}" \
+            "${NOTIFY_WEBHOOK_URL}"
+
+      - name: Send email notification
+        if: ${{ env.SMTP_SERVER != '' && env.SMTP_USERNAME != '' && env.SMTP_PASSWORD != '' && env.NOTIFY_EMAIL_TO != '' && env.NOTIFY_EMAIL_FROM != '' }}
+        continue-on-error: true
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ env.SMTP_SERVER }}
+          server_port: ${{ env.SMTP_PORT || '587' }}
+          secure: false
+          username: ${{ env.SMTP_USERNAME }}
+          password: ${{ env.SMTP_PASSWORD }}
+          subject: "[${{ steps.status.outputs.status }}] ${{ needs.prepare.outputs.deploy_env }} deploy ${{ needs.prepare.outputs.version }}"
+          to: ${{ env.NOTIFY_EMAIL_TO }}
+          from: ${{ env.NOTIFY_EMAIL_FROM }}
+          body: |
+            ${{ steps.status.outputs.summary }}
+
+            Repository: ${{ github.repository }}
+            Environment: ${{ needs.prepare.outputs.deploy_env }}
+            Method: ${{ needs.prepare.outputs.deploy_method }}
+            Version: ${{ needs.prepare.outputs.version }}
+            Source Branch: ${{ needs.prepare.outputs.source_branch }}
+            Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

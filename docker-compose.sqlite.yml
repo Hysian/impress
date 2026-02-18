@@ -1,0 +1,69 @@
+name: blotting-sqlite
+
+services:
+  # Backend API service (SQLite for lightweight/local deployments)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: blotting-backend-sqlite
+    environment:
+      PORT: 8080
+      DB_DSN: "file:/app/data/blotting.db?cache=shared&mode=rwc"
+      JWT_SECRET: "dev_jwt_secret_change_in_production"
+      JWT_REFRESH_SECRET: "dev_jwt_refresh_secret_change_in_production"
+      ENV: "development"
+    ports:
+      - "8080:8080"
+    volumes:
+      - sqlite_data:/app/data
+      - ./backend/cmd:/app/cmd
+      - ./backend/internal:/app/internal
+      - ./backend/pkg:/app/pkg
+      - ./backend/go.mod:/app/go.mod
+      - ./backend/go.sum:/app/go.sum
+    networks:
+      - blotting-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend SPA service (React/Vite)
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      target: development
+    container_name: blotting-frontend-sqlite
+    environment:
+      VITE_API_BASE_URL: "http://localhost:8080"
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      - ./frontend/src:/app/frontend/src
+      - ./frontend/public:/app/frontend/public
+      - ./frontend/index.html:/app/frontend/index.html
+      - ./frontend/vite.config.ts:/app/frontend/vite.config.ts
+      - ./frontend/tsconfig.app.json:/app/frontend/tsconfig.app.json
+      - ./frontend/tsconfig.node.json:/app/frontend/tsconfig.node.json
+      - ./frontend/tailwind.config.ts:/app/frontend/tailwind.config.ts
+      - ./frontend/postcss.config.ts:/app/frontend/postcss.config.ts
+      - /app/frontend/node_modules
+    networks:
+      - blotting-network
+    restart: unless-stopped
+    command: pnpm dev --host 0.0.0.0
+
+volumes:
+  sqlite_data:
+    driver: local
+
+networks:
+  blotting-network:
+    driver: bridge

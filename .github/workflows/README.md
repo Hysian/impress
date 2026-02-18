@@ -1,107 +1,92 @@
-# CI Quality Gate Pipeline
+# CI/CD Workflows
 
-This directory contains GitHub Actions workflows for automated quality checks.
+This directory contains two GitHub Actions workflows:
 
-## quality-gate.yml
+1. `quality-gate.yml` - CI quality checks
+2. `deploy.yml` - CD deployment automation (SSH or HTTP)
 
-The main CI pipeline that enforces code quality and blocks merges on regression failures.
+## 1) quality-gate.yml
 
-### What it does
+`quality-gate.yml` is the merge gate. It runs:
 
-The pipeline runs three parallel check suites:
+- Frontend checks: lint, type-check, tests
+- Backend checks: `go mod verify`, `go mod tidy`, `go vet`, `go test -race`
+- Integration smoke: frontend build + backend build
+- Summary job: fails if any upstream job fails
 
-1. **Frontend Quality Checks**
-   - ESLint code linting
-   - TypeScript type checking
-   - Vitest test suite execution
-   - Test results artifact upload
+### Trigger
 
-2. **Backend Quality Checks**
-   - Go module verification (`go mod verify` and `go mod tidy`)
-   - Go vet static analysis
-   - Go test suite with race detection and coverage
-   - Coverage report artifact upload
+- Push: `main`, `master`, `develop`
+- Pull request target: `main`, `master`, `develop`
 
-3. **Integration Smoke Checks**
-   - Frontend build (`pnpm build`)
-   - Backend build (`go build`)
-   - Build artifact verification
-   - Artifact upload for deployability validation
+### Branch protection
 
-4. **Quality Gate Summary**
-   - Aggregates all check results
-   - Posts job summary to GitHub UI
-   - **Blocks merge if any check fails**
+Require these checks before merge:
 
-### Triggers
+- `Frontend Quality Checks`
+- `Backend Quality Checks`
+- `Integration Smoke Checks`
+- `Quality Gate Summary`
 
-The pipeline runs on:
-- Pushes to `main`, `master`, or `develop` branches
-- Pull requests targeting `main`, `master`, or `develop` branches
+## 2) deploy.yml
 
-### Artifacts
+`deploy.yml` provides automated deployment for frontend + backend after CI passes.
 
-The pipeline uploads artifacts with 7-day retention:
-- `frontend-test-results`: Frontend test coverage reports
-- `backend-coverage`: Backend test coverage file
-- `build-artifacts`: Compiled frontend (`dist/`) and backend binary (`server`)
+### Trigger
 
-### Branch Protection Setup
+- Automatic: `workflow_run` when `Quality Gate` succeeds on `main`/`master`
+- Manual: `workflow_dispatch` (choose ref/method/environment/version)
 
-To enforce the quality gate and block merges on failures:
+### Deployment methods
 
-1. Go to repository **Settings** → **Branches**
-2. Add a branch protection rule for your main branch (e.g., `main` or `master`)
-3. Enable **"Require status checks to pass before merging"**
-4. Select these required status checks:
-   - `Frontend Quality Checks`
-   - `Backend Quality Checks`
-   - `Integration Smoke Checks`
-   - `Quality Gate Summary`
-5. Enable **"Require branches to be up to date before merging"** (recommended)
-6. Save changes
+- `ssh` method:
+  - Uses `scripts/deploy.sh`
+  - Copies frontend/backend artifacts via SSH/SCP
+  - Activates versions with atomic symlink swap
+  - Restarts backend service and checks health
+- `http` method:
+  - Uses `scripts/deploy-http.sh`
+  - Uploads both artifacts to a deployment API endpoint
 
-### Local Verification
+### Notifications
 
-To run the same checks locally before pushing:
+After deploy, workflow supports:
 
-```bash
-# Frontend checks
-pnpm lint
-pnpm type-check
-pnpm test:run
+- Webhook notification (`NOTIFY_WEBHOOK_URL`)
+- Email notification (SMTP secrets configured)
 
-# Backend checks
-go mod verify
-go mod tidy
-go vet ./...
-go test -v -race ./...
+### Required secrets (SSH mode)
 
-# Integration smoke
-pnpm build
-go build -v -o ./server ./cmd/server
-```
+- `DEPLOY_HOST`
+- `DEPLOY_SSH_PRIVATE_KEY`
 
-### Troubleshooting
+Optional for SSH mode:
 
-**Pipeline fails on `go mod tidy` check:**
-- Run `go mod tidy` locally and commit the updated `go.mod` and `go.sum`
+- `DEPLOY_USER`
+- `DEPLOY_ROOT`
+- `DEPLOY_KNOWN_HOSTS`
 
-**Frontend lint or type-check fails:**
-- Fix issues reported by `pnpm lint` and `pnpm type-check`
-- Ensure all TypeScript errors are resolved before pushing
+### Required secrets (HTTP mode)
 
-**Backend tests fail with race detector:**
-- Race conditions detected indicate potential concurrency bugs
-- Fix data races before merging to prevent production issues
+- `DEPLOY_HTTP_ENDPOINT`
 
-**Build artifacts missing:**
-- Ensure `pnpm build` produces `dist/` directory
-- Ensure `go build ./cmd/server` produces `server` binary
+Optional for HTTP mode:
 
-### Performance Notes
+- `DEPLOY_HTTP_TOKEN`
 
-- Go and pnpm caches are configured to speed up dependency installation
-- Tests run with race detection enabled for concurrency safety
-- Parallel job execution minimizes total pipeline time
-- Failed jobs upload artifacts for debugging even on failure (`if: always()`)
+### Optional notification secrets
+
+- `NOTIFY_WEBHOOK_URL`
+- `SMTP_SERVER`
+- `SMTP_PORT`
+- `SMTP_USERNAME`
+- `SMTP_PASSWORD`
+- `NOTIFY_EMAIL_TO`
+- `NOTIFY_EMAIL_FROM`
+
+### Optional repository variables
+
+- `DEPLOY_METHOD` (default deploy method for auto run, `ssh`/`http`)
+- `DEPLOY_ENVIRONMENT` (default `production`)
+- `BACKEND_SERVICE` (for SSH script override)
+- `BACKEND_HEALTH_URL` (for SSH post-deploy health check)

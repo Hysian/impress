@@ -9,6 +9,7 @@ This directory contains production build and deployment automation scripts for t
 | `build-frontend.sh` | Build versioned frontend artifact | `./scripts/build-frontend.sh` |
 | `build-backend.sh` | Build versioned backend binary | `./scripts/build-backend.sh` |
 | `deploy.sh` | Deploy artifacts to production | `DEPLOY_HOST=prod.example.com VERSION=v1.0.0 ./scripts/deploy.sh` |
+| `deploy-http.sh` | Deploy artifacts via HTTP API | `DEPLOY_HTTP_ENDPOINT=https://deploy.example.com/api/releases VERSION=v1.0.0 ./scripts/deploy-http.sh` |
 | `rollback.sh` | Rollback to previous version | `DEPLOY_HOST=prod.example.com COMPONENT=all ./scripts/rollback.sh` |
 | `migrate-db.sh` | Migrate SQLite to PostgreSQL | `TARGET_DB_DSN="..." ./scripts/migrate-db.sh` |
 | `long-agent.mjs` | Long-running autonomous agent | `pnpm agent:run` |
@@ -45,6 +46,16 @@ pnpm deploy
 ./scripts/deploy.sh
 ```
 
+### Deploying via HTTP API
+
+```bash
+export DEPLOY_HTTP_ENDPOINT="https://deploy.example.com/api/releases"
+export DEPLOY_HTTP_TOKEN="replace-with-api-token" # optional if endpoint requires auth
+export VERSION="v1.2.3"
+
+./scripts/deploy-http.sh
+```
+
 ### Rolling Back
 
 ```bash
@@ -78,7 +89,7 @@ pnpm migrate:db
 Builds the React frontend with production optimizations.
 
 **Process:**
-1. Cleans previous build (`dist/`)
+1. Cleans previous build (`out/`)
 2. Installs dependencies with `pnpm install --frozen-lockfile`
 3. Runs `pnpm type-check` for TypeScript validation
 4. Runs `pnpm lint` for code quality
@@ -139,6 +150,8 @@ Deploys frontend and backend artifacts to a remote server using SSH.
 - `BACKEND_SERVICE`: Systemd service name (default: `blotting-api`)
 - `FRONTEND_PATH`: Frontend deployment path (default: `${DEPLOY_ROOT}/frontend`)
 - `BACKEND_PATH`: Backend deployment path (default: `${DEPLOY_ROOT}/backend`)
+- `BACKEND_HEALTH_URL`: HTTP health check URL on remote host (default: `http://127.0.0.1:8080/health`)
+- `DEPLOY_AUTO_APPROVE`: Skip interactive confirmation (`true`/`1`/`yes`) for CI/CD
 
 **Deployment Process:**
 1. **Preflight Checks**: Validates artifacts exist and checksums match
@@ -150,7 +163,27 @@ Deploys frontend and backend artifacts to a remote server using SSH.
 - Atomic symlink swap ensures zero-downtime updates
 - Previous version backed up to `previous` symlink for rollback
 - Backend service health check after restart
-- Interactive confirmation prompt before deployment
+- Automatic `blotting-api-latest` symlink creation in each backend release directory
+- Interactive confirmation prompt (can be disabled with `DEPLOY_AUTO_APPROVE=true`)
+
+### deploy-http.sh
+
+Deploys frontend and backend artifacts through an HTTP endpoint.
+
+**Required Environment Variables:**
+- `DEPLOY_HTTP_ENDPOINT`: Deployment API endpoint URL
+- `VERSION`: Version to deploy (must match built artifacts)
+
+**Optional Environment Variables:**
+- `DEPLOY_HTTP_TOKEN`: Bearer token for endpoint authentication
+- `ENVIRONMENT`: Environment name (default: `production`)
+- `ARTIFACTS_DIR`: Artifact directory (default: `./artifacts`)
+
+**Behavior:**
+1. Validates artifact files exist
+2. Builds a multipart HTTP request with frontend/backend artifacts
+3. Includes checksum files when present
+4. Fails if endpoint returns non-2xx HTTP status
 
 ### rollback.sh
 
@@ -235,7 +268,7 @@ After running build scripts, the following structure is created:
 │   ├── blotting-api-v1.2.3              # Standalone backend binary
 │   ├── blotting-api-latest → ...        # Symlink to latest binary
 │   └── build-info.json                  # Build metadata
-├── dist/                                # Frontend build output (temporary)
+├── frontend/out/                        # Frontend build output (temporary)
 │   ├── index.html
 │   ├── assets/
 │   └── build-info.json
@@ -246,63 +279,19 @@ The `artifacts/` directory is excluded from git via `.gitignore`.
 
 ## Integration with CI/CD
 
-### GitHub Actions Example
+### GitHub Actions Integration
 
-```yaml
-name: Build and Deploy
+This repository includes:
 
-on:
-  push:
-    tags:
-      - 'v*'
+- `.github/workflows/quality-gate.yml`: CI quality gate
+- `.github/workflows/deploy.yml`: CD deployment workflow
 
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+`deploy.yml` supports:
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.21'
-
-      - name: Build Frontend
-        run: ./scripts/build-frontend.sh
-
-      - name: Build Backend
-        run: ./scripts/build-backend.sh
-
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-artifacts
-          path: artifacts/
-
-      - name: Deploy to Production
-        env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          VERSION: ${{ github.ref_name }}
-        run: |
-          # Setup SSH key
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-
-          # Deploy
-          ./scripts/deploy.sh
-```
+- auto-deploy when quality gate succeeds on `main`/`master`
+- manual deploy via `workflow_dispatch`
+- `ssh` and `http` deployment transports
+- webhook/email notifications after deployment
 
 ## Troubleshooting
 

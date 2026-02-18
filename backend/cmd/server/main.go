@@ -68,11 +68,21 @@ func main() {
 		logLevel = logger.Warn
 	}
 
+	maxOpenConn := 25
+	maxIdleConn := 5
+	maxLifetime := 5 * time.Minute
+	if !db.IsPostgresDSN(cfg.DBDSN) {
+		// SQLite is file-based and works best with a small connection pool.
+		maxOpenConn = 1
+		maxIdleConn = 1
+		maxLifetime = 0
+	}
+
 	database, err := db.Init(db.InitOptions{
 		DSN:         cfg.DBDSN,
-		MaxOpenConn: 25,
-		MaxIdleConn: 5,
-		MaxLifetime: 5 * time.Minute,
+		MaxOpenConn: maxOpenConn,
+		MaxIdleConn: maxIdleConn,
+		MaxLifetime: maxLifetime,
 		LogLevel:    logLevel,
 	})
 	if err != nil {

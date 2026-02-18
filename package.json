@@ -16,6 +16,7 @@
     "build:frontend": "./scripts/build-frontend.sh",
     "build:backend": "./scripts/build-backend.sh",
     "deploy": "./scripts/deploy.sh",
+    "deploy:http": "./scripts/deploy-http.sh",
     "rollback": "./scripts/rollback.sh",
     "migrate:db": "./scripts/migrate-db.sh"
   }

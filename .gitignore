@@ -28,5 +28,9 @@ backend/out
 # Docker
 .env
 
+# Local SQLite runtime data
+data/
+*.db
+
 .lragent/
 .playwright-cli/

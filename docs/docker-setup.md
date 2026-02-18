@@ -4,13 +4,15 @@ This document provides instructions for running the 印迹官网 (Blotting Consu
 
 ## Overview
 
-The Docker Compose stack includes three services:
+The default Docker Compose stack (`docker-compose.yml`) includes three services:
 
 - **db**: PostgreSQL 15 database
 - **backend**: Go/Gin/GORM REST API server
 - **frontend**: React/Vite SPA development server
 
 All services are connected via a Docker bridge network with health checks and automatic restart policies.
+
+For lightweight local validation or single-host deployment, use `docker-compose.sqlite.yml` (no PostgreSQL container, backend uses SQLite file storage).
 
 ## Prerequisites
 
@@ -33,6 +35,18 @@ Review and customize `.env` if needed. The default values are suitable for local
 ```bash
 docker-compose up --build
 ```
+
+### Lightweight Mode (SQLite, no PostgreSQL)
+
+```bash
+docker compose -f docker-compose.sqlite.yml up --build
+```
+
+This mode runs only:
+- `backend` (SQLite database at `/app/data/blotting.db`)
+- `frontend`
+
+It is suitable for local demos, low-traffic deployments, or environments where running PostgreSQL is unnecessary.
 
 This command will:
 - Build backend and frontend Docker images
@@ -127,6 +141,20 @@ To connect with `psql` from host:
 ```bash
 psql -h localhost -U blotting_user -d blotting_cms
 # Password: blotting_dev_password
+```
+
+### Database (SQLite mode)
+
+When using `docker-compose.sqlite.yml`:
+
+- No separate DB service is required
+- Backend DSN defaults to `file:/app/data/blotting.db?cache=shared&mode=rwc`
+- Persistent volume: `sqlite_data`
+- Reset database:
+
+```bash
+docker compose -f docker-compose.sqlite.yml down -v
+docker compose -f docker-compose.sqlite.yml up --build
 ```
 
 ### Backend (Go API)
@@ -259,7 +287,7 @@ Key variables:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | 8080 | Backend API port |
-| `DB_DSN` | (see .env.example) | PostgreSQL connection string |
+| `DB_DSN` | (see .env.example) | Database DSN (PostgreSQL or SQLite) |
 | `JWT_SECRET` | dev_jwt_secret_change_in_production | JWT signing secret |
 | `JWT_REFRESH_SECRET` | dev_jwt_refresh_secret_change_in_production | Refresh token signing secret |
 | `ENV` | development | Environment mode (development/production) |

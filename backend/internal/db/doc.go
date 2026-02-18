@@ -80,4 +80,8 @@
 // DSN Format:
 //   - SQLite: "file:dev.db" or ":memory:" for in-memory database
 //   - PostgreSQL: "postgres://user:pass@localhost:5432/dbname?sslmode=disable"
+//
+// Notes:
+//   - SQLite file DSN paths are auto-created when parent directories do not exist.
+//   - SQLite connections automatically enable foreign keys and busy timeout pragmas.
 package db

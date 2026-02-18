@@ -72,7 +72,7 @@ VERSION=v1.2.0 ./scripts/build-frontend.sh
 4. Runs `pnpm lint` for code quality checks
 5. Builds production bundle with `pnpm build`
 6. Creates `build-info.json` with version metadata
-7. Packages `dist/` directory into `artifacts/frontend-{version}.tar.gz`
+7. Packages `frontend/out/` directory into `artifacts/frontend-{version}.tar.gz`
 8. Generates SHA256 checksum
 9. Creates `frontend-latest.tar.gz` symlink
 
@@ -313,8 +313,8 @@ Create `/etc/systemd/system/blotting-api.service`:
 ```ini
 [Unit]
 Description=Blotting Consultancy API Server
-After=network.target postgresql.service
-Wants=postgresql.service
+After=network.target
+Wants=network.target
 
 [Service]
 Type=simple
@@ -394,54 +394,39 @@ Create `/opt/blotting/backend/.env` with production configuration:
 ```env
 ENV=production
 PORT=8080
-DB_DSN=postgresql://blotting:password@localhost:5432/blotting?sslmode=require
+# Option A: SQLite (lightweight/single-host)
+DB_DSN=file:/opt/blotting/backend/data/blotting.db?cache=shared&mode=rwc
+
+# Option B: PostgreSQL
+# DB_DSN=postgresql://blotting:password@localhost:5432/blotting?sslmode=require
 JWT_SECRET=<production-secret>
 JWT_REFRESH_SECRET=<production-refresh-secret>
 ```
 
 **Security Note:** Never commit `.env` files to version control. Use secure secret management systems in production.
 
-## Continuous Integration
+## CI/CD Automation
 
-### GitHub Actions Example
+The repository includes two workflows:
 
-Automate builds on tag creation:
+- `quality-gate.yml`: lint/type-check/test/build checks
+- `deploy.yml`: deploy after quality gate passes on `main`/`master` (or manual dispatch)
 
-```yaml
-name: Build and Release
+Deployment supports:
 
-on:
-  push:
-    tags:
-      - 'v*'
+- SSH transport (`scripts/deploy.sh`)
+- HTTP API transport (`scripts/deploy-http.sh`)
+- Notification via webhook and optional SMTP email
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v2
-        with:
-          version: 8
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.21'
+### Required GitHub Secrets
 
-      - name: Build Frontend
-        run: ./scripts/build-frontend.sh
+- SSH mode: `DEPLOY_HOST`, `DEPLOY_SSH_PRIVATE_KEY`
+- HTTP mode: `DEPLOY_HTTP_ENDPOINT`
 
-      - name: Build Backend
-        run: ./scripts/build-backend.sh
+Optional:
 
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-artifacts
-          path: artifacts/
-```
+- `DEPLOY_USER`, `DEPLOY_ROOT`, `DEPLOY_HTTP_TOKEN`, `DEPLOY_KNOWN_HOSTS`
+- Notification: `NOTIFY_WEBHOOK_URL`, `SMTP_*`, `NOTIFY_EMAIL_TO`, `NOTIFY_EMAIL_FROM`
 
 ## Troubleshooting
 

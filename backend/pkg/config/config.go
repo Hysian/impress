@@ -18,6 +18,8 @@ type Config struct {
 	UploadDir          string
 }
 
+const defaultSQLiteDSN = "file:./data/blotting.db?cache=shared&mode=rwc"
+
 // Load reads configuration from environment variables with validation and defaults
 func Load() (*Config, error) {
 	cfg := &Config{}
@@ -35,10 +37,10 @@ func Load() (*Config, error) {
 		cfg.Port = port
 	}
 
-	// DB_DSN (required)
+	// DB_DSN (optional, default SQLite file for local development)
 	cfg.DBDSN = os.Getenv("DB_DSN")
 	if cfg.DBDSN == "" {
-		missingVars = append(missingVars, "DB_DSN")
+		cfg.DBDSN = defaultSQLiteDSN
 	}
 
 	// JWT_SECRET (required)

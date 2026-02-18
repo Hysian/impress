@@ -14,11 +14,13 @@ DEPLOY_HOST="${DEPLOY_HOST:?DEPLOY_HOST environment variable is required}"
 DEPLOY_ROOT="${DEPLOY_ROOT:-/opt/blotting}"
 VERSION="${VERSION:?VERSION environment variable is required}"
 ARTIFACTS_DIR="${ARTIFACTS_DIR:-./artifacts}"
+DEPLOY_AUTO_APPROVE="${DEPLOY_AUTO_APPROVE:-false}"
 
 # Service control
 BACKEND_SERVICE="${BACKEND_SERVICE:-blotting-api}"
 FRONTEND_PATH="${FRONTEND_PATH:-${DEPLOY_ROOT}/frontend}"
 BACKEND_PATH="${BACKEND_PATH:-${DEPLOY_ROOT}/backend}"
+BACKEND_HEALTH_URL="${BACKEND_HEALTH_URL:-http://127.0.0.1:8080/health}"
 
 # Color output
 RED='\033[0;31m'
@@ -36,6 +38,13 @@ log_warn() {
 
 log_error() {
   echo -e "${RED}[ERROR]${NC} $*"
+}
+
+is_true() {
+  case "${1,,}" in
+    true|1|yes|y) return 0 ;;
+    *) return 1 ;;
+  esac
 }
 
 # Preflight checks
@@ -147,6 +156,15 @@ mkdir -p "${BACKEND_PATH}/versions/${VERSION}"
 tar -xzf "${DEPLOY_ROOT}/backend-${VERSION}.tar.gz" \
   -C "${BACKEND_PATH}/versions/${VERSION}"
 
+# Ensure stable backend executable symlink exists for systemd
+BACKEND_BIN=\$(find "${BACKEND_PATH}/versions/${VERSION}" -maxdepth 1 -type f -name "blotting-api-*" | head -n 1)
+if [ -z "\${BACKEND_BIN}" ]; then
+  echo "ERROR: Backend binary not found in extracted artifact"
+  exit 1
+fi
+chmod +x "\${BACKEND_BIN}"
+ln -snf "\$(basename "\${BACKEND_BIN}")" "${BACKEND_PATH}/versions/${VERSION}/blotting-api-latest"
+
 # Create backup symlink of current version
 if [ -L "${BACKEND_PATH}/current" ]; then
   CURRENT_TARGET=\$(readlink "${BACKEND_PATH}/current")
@@ -168,6 +186,14 @@ sleep 3
 if ! systemctl is-active --quiet "${BACKEND_SERVICE}"; then
   echo "ERROR: Backend service failed to start"
   exit 1
+fi
+if command -v curl &> /dev/null; then
+  if ! curl --silent --show-error --fail --max-time 5 "${BACKEND_HEALTH_URL}" > /dev/null; then
+    echo "ERROR: Backend health check failed at ${BACKEND_HEALTH_URL}"
+    exit 1
+  fi
+else
+  echo "WARNING: curl not found on remote host, skipping HTTP health check"
 fi
 
 # Cleanup old artifact
@@ -221,11 +247,15 @@ main() {
   echo "Deploy Root: ${DEPLOY_ROOT}"
   echo "=========================================="
 
-  # Confirm deployment
-  read -p "Proceed with deployment? (yes/no): " -r
-  if [[ ! $REPLY =~ ^[Yy][Ee][Ss]$ ]]; then
-    log_warn "Deployment cancelled"
-    exit 0
+  # Confirm deployment unless auto-approved (CI mode)
+  if ! is_true "${DEPLOY_AUTO_APPROVE}"; then
+    read -p "Proceed with deployment? (yes/no): " -r
+    if [[ ! $REPLY =~ ^[Yy][Ee][Ss]$ ]]; then
+      log_warn "Deployment cancelled"
+      exit 0
+    fi
+  else
+    log_info "Auto-approve enabled, skipping interactive confirmation"
   fi
 
   preflight_checks
