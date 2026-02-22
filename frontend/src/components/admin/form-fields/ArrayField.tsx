@@ -10,7 +10,7 @@ interface ArrayFieldProps {
   path: string;
   itemFields: FieldDescriptor[];
   minItems?: number;
-  onPickImage?: () => void;
+  onPickImage?: (onSelect: (url: string) => void) => void;
 }
 
 /**

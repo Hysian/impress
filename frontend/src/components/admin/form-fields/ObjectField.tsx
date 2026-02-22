@@ -10,7 +10,7 @@ interface ObjectFieldProps {
   disabled?: boolean;
   path: string;
   fields: Record<string, FieldDescriptor>;
-  onPickImage?: () => void;
+  onPickImage?: (onSelect: (url: string) => void) => void;
 }
 
 export default function ObjectField({

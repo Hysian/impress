@@ -34,3 +34,19 @@ data/
 
 .lragent/
 .playwright-cli/
+.playwright-mcp/
+
+# Test artifacts
+test-screenshots/
+test-*.png
+
+# Backend binaries & uploads
+backend/server
+backend/migrate-pages
+backend/uploads/
+
+# Generated files
+frontend/auto-imports.d.ts
+
+# OS files
+.DS_Store

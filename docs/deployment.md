@@ -301,7 +301,7 @@ If automated rollback fails:
 3. Verify services:
    ```bash
    systemctl status blotting-api
-   curl http://localhost:8080/health
+   curl http://localhost:8088/health
    ```
 
 ## Server Setup Requirements
@@ -393,7 +393,7 @@ Create `/opt/blotting/backend/.env` with production configuration:
 
 ```env
 ENV=production
-PORT=8080
+PORT=8088
 # Option A: SQLite (lightweight/single-host)
 DB_DSN=file:/opt/blotting/backend/data/blotting.db?cache=shared&mode=rwc
 

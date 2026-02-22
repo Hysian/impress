@@ -21,6 +21,7 @@ const (
 	PageKeyExperts      PageKey = "experts"
 	PageKeyContact      PageKey = "contact"
 	PageKeyGlobal       PageKey = "global"
+	PageKeyTheme        PageKey = "theme"
 )
 
 // ValidPageKeys contains all valid page key values
@@ -33,6 +34,7 @@ var ValidPageKeys = []PageKey{
 	PageKeyExperts,
 	PageKeyContact,
 	PageKeyGlobal,
+	PageKeyTheme,
 }
 
 // IsValid checks if a page key value is valid
@@ -105,7 +107,7 @@ func (ContentDocument) TableName() string {
 // Validate validates the content document model
 func (cd *ContentDocument) Validate() error {
 	if !cd.PageKey.IsValid() {
-		return errors.New("pageKey must be one of: home, about, advantages, core-services, cases, experts, contact, global")
+		return errors.New("pageKey must be one of: home, about, advantages, core-services, cases, experts, contact, global, theme")
 	}
 	if cd.DraftVersion < 0 {
 		return errors.New("draftVersion cannot be negative")

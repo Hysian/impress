@@ -13,7 +13,7 @@ interface MediaRefFieldProps {
   required?: boolean;
   disabled?: boolean;
   path: string;
-  onPickImage?: () => void;
+  onPickImage?: (onSelect: (url: string) => void) => void;
 }
 
 export default function MediaRefField({
@@ -48,7 +48,7 @@ export default function MediaRefField({
         {onPickImage && (
           <button
             type="button"
-            onClick={onPickImage}
+            onClick={() => onPickImage?.((url) => onChange({ ...current, url }))}
             disabled={disabled}
             className="px-3 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 whitespace-nowrap"
           >

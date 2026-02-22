@@ -18,7 +18,7 @@ For lightweight local validation or single-host deployment, use `docker-compose.
 
 - Docker Desktop 20.10+ (includes Docker Compose V2)
 - At least 4GB RAM allocated to Docker
-- Ports 3000, 5432, and 8080 available on your host machine
+- Ports 3000, 5432, and 8088 available on your host machine
 
 ## First-Time Setup
 
@@ -63,7 +63,7 @@ Once all services are running, verify health:
 docker-compose ps
 
 # Check backend health endpoint
-curl http://localhost:8080/health
+curl http://localhost:8088/health
 
 # Access frontend
 open http://localhost:3000
@@ -159,7 +159,7 @@ docker compose -f docker-compose.sqlite.yml up --build
 
 ### Backend (Go API)
 
-- **Port**: 8080 (exposed to host)
+- **Port**: 8088 (exposed to host)
 - **Health Check**: `GET /health`
 - **Metrics**: `GET /metrics`
 - **Source Mounts**: `cmd/`, `internal/`, `pkg/`, `go.mod`, `go.sum` mounted as volumes for live reload (requires manual restart)
@@ -186,8 +186,8 @@ Vite HMR will automatically reflect changes to `src/` files.
 If you see "port is already allocated" errors:
 
 ```bash
-# Check what's using the port (example: 8080)
-lsof -i :8080
+# Check what's using the port (example: 8088)
+lsof -i :8088
 
 # Kill the process or stop conflicting containers
 docker ps
@@ -286,12 +286,12 @@ Key variables:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PORT` | 8080 | Backend API port |
+| `PORT` | 8088 | Backend API port |
 | `DB_DSN` | (see .env.example) | Database DSN (PostgreSQL or SQLite) |
 | `JWT_SECRET` | dev_jwt_secret_change_in_production | JWT signing secret |
 | `JWT_REFRESH_SECRET` | dev_jwt_refresh_secret_change_in_production | Refresh token signing secret |
 | `ENV` | development | Environment mode (development/production) |
-| `VITE_API_BASE_URL` | http://localhost:8080 | Frontend API base URL |
+| `VITE_API_BASE_URL` | http://localhost:8088 | Frontend API base URL |
 
 ⚠️ **Security Warning**: Never use the default JWT secrets in production. Generate strong secrets before deploying.
 

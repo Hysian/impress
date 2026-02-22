@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   fetchPublicContent,
+  fetchDraftContent,
   normalizeConfigForLocale,
   type PageKey,
   type Locale,
@@ -90,6 +92,9 @@ export function usePublicContent(
     enabled = true,
   } = options;
 
+  const [searchParams] = useSearchParams();
+  const isPreviewDraft = searchParams.get("preview") === "draft";
+
   const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState<PublicContentError | null>(null);
   const [response, setResponse] = useState<PublicPageResponse | null>(null);
@@ -99,7 +104,9 @@ export function usePublicContent(
     setError(null);
 
     try {
-      const data = await fetchPublicContent(pageKey, locale);
+      const data = isPreviewDraft
+        ? await fetchDraftContent(pageKey, locale)
+        : await fetchPublicContent(pageKey, locale);
       setResponse(data);
     } catch (err) {
       const errorData = err as PublicContentError;
@@ -108,7 +115,7 @@ export function usePublicContent(
     } finally {
       setLoading(false);
     }
-  }, [pageKey, locale]);
+  }, [pageKey, locale, isPreviewDraft]);
 
   useEffect(() => {
     if (enabled) {

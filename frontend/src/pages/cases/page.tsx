@@ -1,9 +1,8 @@
 import { useTranslation } from 'react-i18next';
-import Header from '../../components/feature/Header';
-import Footer from '../../components/feature/Footer';
 import PageHero from '../../components/feature/PageHero';
 import { usePublicContent } from '@/hooks/usePublicContent';
 import type { Locale } from '@/api/publicContent';
+import { PublicLayout } from '@/theme/layouts';
 
 interface HeroConfig {
   label?: string;
@@ -32,17 +31,21 @@ export default function CasesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-gray-600">Loading...</div>
-      </div>
+      <PublicLayout>
+        <div className="min-h-screen bg-white flex items-center justify-center">
+          <div className="text-gray-600">Loading...</div>
+        </div>
+      </PublicLayout>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-red-600">Failed to load page content</div>
-      </div>
+      <PublicLayout>
+        <div className="min-h-screen bg-white flex items-center justify-center">
+          <div className="text-red-600">Failed to load page content</div>
+        </div>
+      </PublicLayout>
     );
   }
 
@@ -51,9 +54,7 @@ export default function CasesPage() {
   const categories = pageConfig.categories || [];
 
   return (
-    <div className="min-h-screen bg-white">
-      <Header />
-
+    <PublicLayout>
       <PageHero
         label={hero.label}
         title={hero.title}
@@ -62,7 +63,7 @@ export default function CasesPage() {
       />
 
       <section className="py-12 md:py-16 lg:py-24 bg-white">
-        <div className="max-w-[1344px] mx-auto px-4 md:px-6">
+        <div className="max-w-layout mx-auto px-4 md:px-6">
           <div className="space-y-10 md:space-y-14">
             {categories.map((category, index) => {
               const items = category.items || [];
@@ -70,7 +71,7 @@ export default function CasesPage() {
               return (
                 <div key={index}>
                   {category.title && (
-                    <h2 className="text-xl md:text-2xl font-bold text-[#1a5f8f] mb-4">
+                    <h2 className="text-xl md:text-2xl font-bold text-primary mb-4">
                       {category.title}
                     </h2>
                   )}
@@ -81,7 +82,7 @@ export default function CasesPage() {
                           key={i}
                           className="flex items-start gap-2 text-base text-gray-700 leading-relaxed"
                         >
-                          <span className="text-[#1a5f8f] flex-shrink-0" aria-hidden>
+                          <span className="text-primary flex-shrink-0" aria-hidden>
                           ✅
                           </span>
                           <span>{item}</span>
@@ -95,8 +96,6 @@ export default function CasesPage() {
           </div>
         </div>
       </section>
-
-      <Footer />
-    </div>
+    </PublicLayout>
   );
 }

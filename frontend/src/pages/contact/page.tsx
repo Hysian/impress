@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import Header from '../../components/feature/Header';
-import Footer from '../../components/feature/Footer';
 import PageHero from '../../components/feature/PageHero';
 import { usePublicContent } from '@/hooks/usePublicContent';
 import type { Locale } from '@/api/publicContent';
+import { PublicLayout } from '@/theme/layouts';
 
 interface HeroConfig {
   title?: string;
@@ -55,17 +54,21 @@ export default function ContactPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-gray-600">Loading...</div>
-      </div>
+      <PublicLayout>
+        <div className="min-h-screen bg-white flex items-center justify-center">
+          <div className="text-gray-600">Loading...</div>
+        </div>
+      </PublicLayout>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-red-600">Failed to load page content</div>
-      </div>
+      <PublicLayout>
+        <div className="min-h-screen bg-white flex items-center justify-center">
+          <div className="text-red-600">Failed to load page content</div>
+        </div>
+      </PublicLayout>
     );
   }
 
@@ -76,9 +79,7 @@ export default function ContactPage() {
   const heroBgColor = hero.backgroundColor || '#1E9188';
 
   return (
-    <div className="min-h-screen bg-white">
-      <Header />
-
+    <PublicLayout>
       <PageHero
         title={hero.title}
         subtitle={hero.subtitle}
@@ -87,14 +88,14 @@ export default function ContactPage() {
 
       {/* 主内容：标题+联系方式左右布局，表单区域单独居中 */}
       <section className="py-12 md:py-16 lg:py-24 bg-white">
-        <div className="max-w-[1344px] mx-auto px-4 md:px-6">
+        <div className="max-w-layout mx-auto px-4 md:px-6">
           {/* 左右布局：联络我们的专家+副标题 | 联系方式 */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-start">
             <div>
               {form.title && (
                 <div className="flex items-center mb-2">
-                  <div className="w-[26px] h-[26px] bg-[#8bc34a] mr-3 flex-shrink-0 rounded-full" />
-                  <h2 className="text-xl md:text-2xl font-bold text-[#1a5f8f]">
+                  <div className="w-[26px] h-[26px] bg-accent mr-3 flex-shrink-0 rounded-full" />
+                  <h2 className="text-xl md:text-2xl font-bold text-primary">
                     {form.title}
                   </h2>
                 </div>
@@ -108,7 +109,7 @@ export default function ContactPage() {
             <div className="space-y-6">
               {contact.phone && (
                 <div className="flex items-start gap-4">
-                  <span className="text-[#1a5f8f] mt-1 flex-shrink-0" aria-hidden>
+                  <span className="text-primary mt-1 flex-shrink-0" aria-hidden>
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                     </svg>
@@ -120,7 +121,7 @@ export default function ContactPage() {
               )}
               {contact.address && (
                 <div className="flex items-start gap-4">
-                  <span className="text-[#1a5f8f] mt-1 flex-shrink-0" aria-hidden>
+                  <span className="text-primary mt-1 flex-shrink-0" aria-hidden>
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -148,7 +149,7 @@ export default function ContactPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder={form.namePlaceholder}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1E9188] focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                 />
               </div>
               <div>
@@ -162,7 +163,7 @@ export default function ContactPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder={form.emailPlaceholder}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1E9188] focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                 />
               </div>
               <div>
@@ -175,7 +176,7 @@ export default function ContactPage() {
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder={form.messagePlaceholder}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1E9188] focus:border-transparent resize-y"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-y"
                 />
               </div>
               <div className="flex justify-center">
@@ -191,8 +192,6 @@ export default function ContactPage() {
           </div>
         </div>
       </section>
-
-      <Footer />
-    </div>
+    </PublicLayout>
   );
 }

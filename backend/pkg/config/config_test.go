@@ -51,8 +51,8 @@ func TestLoad_WithDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
-	if cfg.Port != 8080 {
-		t.Errorf("expected default Port=8080, got %d", cfg.Port)
+	if cfg.Port != 8088 {
+		t.Errorf("expected default Port=8088, got %d", cfg.Port)
 	}
 	if cfg.Env != "development" {
 		t.Errorf("expected default Env='development', got '%s'", cfg.Env)

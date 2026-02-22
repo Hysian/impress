@@ -5,7 +5,39 @@ export default {
       "./src/**/*.{js,ts,jsx,tsx}",
     ],
     theme: {
-      extend: {},
+      extend: {
+        colors: {
+          primary: {
+            DEFAULT: "var(--color-primary)",
+            dark: "var(--color-primary-dark)",
+          },
+          accent: {
+            DEFAULT: "var(--color-accent)",
+            hover: "var(--color-accent-hover)",
+          },
+          surface: {
+            DEFAULT: "var(--color-surface)",
+            alt: "var(--color-surface-alt)",
+          },
+          "on-primary": "var(--color-on-primary)",
+          "on-surface": {
+            DEFAULT: "var(--color-on-surface)",
+            muted: "var(--color-on-surface-muted)",
+          },
+          border: "var(--color-border)",
+        },
+        fontFamily: {
+          sans: "var(--font-sans)",
+          heading: "var(--font-heading)",
+        },
+        maxWidth: {
+          layout: "var(--layout-max-width)",
+        },
+        borderRadius: {
+          card: "var(--radius-card)",
+          button: "var(--radius-button)",
+        },
+      },
     },
     plugins: [],
   }

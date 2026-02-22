@@ -30,7 +30,7 @@ WORKDIR /app
 COPY --from=builder /app/server .
 
 # Expose port
-EXPOSE 8080
+EXPOSE 8088
 
 # Run the server
 CMD ["./server"]

@@ -64,6 +64,48 @@ export async function fetchPublicContent(
 }
 
 /**
+ * Fetch draft content for preview purposes (requires admin auth)
+ * @param pageKey - The page identifier
+ * @param locale - The locale (used for response shaping)
+ * @returns Draft config shaped as PublicPageResponse
+ * @throws Error with PublicContentError structure on API failure
+ */
+export async function fetchDraftContent(
+  pageKey: PageKey,
+  locale: Locale = "zh"
+): Promise<PublicPageResponse> {
+  try {
+    const accessToken = localStorage.getItem("accessToken");
+    const response = await http.get<{
+      pageKey: string;
+      config: Record<string, unknown>;
+      version: number;
+    }>(`/admin/content/${pageKey}/draft`, {
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+    });
+    return {
+      pageKey: response.data.pageKey as PageKey,
+      version: response.data.version,
+      locale,
+      config: response.data.config,
+    };
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const apiError = (error.response?.data as { error?: PublicContentError } | undefined)?.error;
+      throw apiError || {
+        code: "NETWORK_ERROR",
+        message: error.message || "Failed to fetch draft for preview",
+      };
+    }
+
+    throw {
+      code: "UNKNOWN_ERROR",
+      message: "Unknown error occurred",
+    } as PublicContentError;
+  }
+}
+
+/**
  * LocalizedText represents a bilingual text field
  */
 export interface LocalizedText {

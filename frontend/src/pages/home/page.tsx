@@ -1,6 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import Header from '../../components/feature/Header';
-import Footer from '../../components/feature/Footer';
+import { PublicLayout } from '@/theme/layouts';
 import { usePublicContent } from '@/hooks/usePublicContent';
 import type { Locale } from '@/api/publicContent';
 
@@ -62,17 +61,21 @@ export default function HomePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-gray-600">Loading...</div>
-      </div>
+      <PublicLayout>
+        <div className="flex items-center justify-center py-32">
+          <div className="text-gray-600">Loading...</div>
+        </div>
+      </PublicLayout>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-red-600">Failed to load page content</div>
-      </div>
+      <PublicLayout>
+        <div className="flex items-center justify-center py-32">
+          <div className="text-red-600">Failed to load page content</div>
+        </div>
+      </PublicLayout>
     );
   }
 
@@ -83,8 +86,7 @@ export default function HomePage() {
   const coreServices = pageConfig.coreServices || {};
 
   return (
-    <div className="min-h-screen bg-white">
-      <Header />
+    <PublicLayout>
 
       {/* Hero Section - 移动端高度与文字适配 */}
       <section className="relative h-[280px] sm:h-[360px] md:h-[440px] lg:h-[560px] flex items-center justify-center">
@@ -96,7 +98,7 @@ export default function HomePage() {
           />
           <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/40" />
         </div>
-        <div className="absolute bottom-6 sm:bottom-12 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 text-center text-white px-4 w-full max-w-[1344px]">
+        <div className="absolute bottom-6 sm:bottom-12 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 text-center text-white px-4 w-full max-w-layout">
           <h1 className="text-lg sm:text-xl md:text-3xl lg:text-4xl mb-2 sm:mb-4">
             {hero.title || ''}
             {hero.subtitle && (
@@ -110,7 +112,7 @@ export default function HomePage() {
 
       {/* About Section - 移动端单列、图文顺序、按钮全宽 */}
       <section id="about" className="py-10 sm:py-16 md:py-24 bg-white">
-        <div className="max-w-[1344px] w-full mx-auto px-4 sm:px-6">
+        <div className="max-w-layout w-full mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             <div className="w-full h-[220px] sm:h-[320px] lg:h-[400px] order-2 lg:order-1">
               <img
@@ -140,7 +142,7 @@ export default function HomePage() {
               )}
               {about.button && (
                 <div className="flex justify-end sm:float-right">
-                  <button className="w-full sm:w-auto bg-[#8bc34a] text-white px-6 sm:px-8 py-3 rounded-md hover:bg-[#7cb342] transition-colors text-sm font-medium whitespace-nowrap cursor-pointer">
+                  <button className="w-full sm:w-auto bg-accent text-white px-6 sm:px-8 py-3 rounded-md hover:bg-accent-hover transition-colors text-sm font-medium whitespace-nowrap cursor-pointer">
                     {about.button}
                   </button>
                 </div>
@@ -153,13 +155,13 @@ export default function HomePage() {
       {/* Advantages Section - 移动端 2x2 网格，标题区不换行 */}
       {advantages.title && (
         <section id="services" className="py-10 sm:py-16 md:py-24">
-          <div className="max-w-[1344px] w-full mx-auto px-4 sm:px-6">
+          <div className="max-w-layout w-full mx-auto px-4 sm:px-6">
             <div className="flex items-center mb-8 sm:mb-12">
-              <div className="w-5 h-5 sm:w-[26px] sm:h-[26px] bg-[#8bc34a] mr-2 sm:mr-3 flex-shrink-0 rounded-sm" />
+              <div className="w-5 h-5 sm:w-[26px] sm:h-[26px] bg-accent mr-2 sm:mr-3 flex-shrink-0 rounded-sm" />
               <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 truncate min-w-0">
                 {advantages.title}
               </h2>
-              <span className="ml-1 sm:ml-2 text-xl sm:text-2xl text-[#8bc34a] flex-shrink-0 cursor-pointer">&gt;</span>
+              <span className="ml-1 sm:ml-2 text-xl sm:text-2xl text-accent flex-shrink-0 cursor-pointer">&gt;</span>
             </div>
             {advantages.cards && advantages.cards.length > 0 && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-0">
@@ -175,12 +177,12 @@ export default function HomePage() {
                     />
                     <div className="absolute inset-0 bg-amber-50/95 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-center items-center p-4 sm:p-5 text-center">
                       {card.title && (
-                        <h3 className="text-[#1a5f8f] text-lg sm:text-xl md:text-2xl font-bold mb-3 w-full">
+                        <h3 className="text-primary text-lg sm:text-xl md:text-2xl font-bold mb-3 w-full">
                           {card.title}
                         </h3>
                       )}
                       {isZh && card.titleEn && (
-                        <p className="text-[#1a5f8f]/80 text-xs sm:text-sm mb-2 w-full">
+                        <p className="text-primary/80 text-xs sm:text-sm mb-2 w-full">
                           {card.titleEn}
                         </p>
                       )}
@@ -201,13 +203,13 @@ export default function HomePage() {
       {/* Core Services Section - 移动端单列、图文上下堆叠 */}
       {coreServices.title && (
         <section id="core-services" className="py-10 sm:py-16 md:py-24 bg-white">
-          <div className="max-w-[1344px] w-full h-full mx-auto px-4 sm:px-6">
+          <div className="max-w-layout w-full h-full mx-auto px-4 sm:px-6">
             <div className="flex items-center mb-8 sm:mb-12">
-              <div className="w-5 h-5 sm:w-[26px] sm:h-[26px] bg-[#8bc34a] mr-2 sm:mr-3 flex-shrink-0 rounded-sm" />
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#1a5f8f] truncate min-w-0">
+              <div className="w-5 h-5 sm:w-[26px] sm:h-[26px] bg-accent mr-2 sm:mr-3 flex-shrink-0 rounded-sm" />
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-primary truncate min-w-0">
                 {coreServices.title}
               </h2>
-              <span className="ml-1 sm:ml-2 text-xl sm:text-2xl text-[#8bc34a] flex-shrink-0 cursor-pointer">&gt;</span>
+              <span className="ml-1 sm:ml-2 text-xl sm:text-2xl text-accent flex-shrink-0 cursor-pointer">&gt;</span>
             </div>
             {coreServices.services && coreServices.services.length > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 sm:gap-x-8 sm:gap-y-10">
@@ -222,7 +224,7 @@ export default function HomePage() {
                     </div>
                     <div className="flex flex-col justify-center min-w-0">
                       {service.title && (
-                        <h3 className="text-base font-bold text-[#1a5f8f] mb-1 sm:mb-2">
+                        <h3 className="text-base font-bold text-primary mb-1 sm:mb-2">
                           {service.title}
                         </h3>
                       )}
@@ -232,7 +234,7 @@ export default function HomePage() {
                         </p>
                       )}
                       {service.link && (
-                        <a href="#" className="text-sm font-bold text-[#1a5f8f] hover:text-[#8bc34a] transition-colors cursor-pointer">
+                        <a href="#" className="text-sm font-bold text-primary hover:text-accent transition-colors cursor-pointer">
                           {service.link}
                         </a>
                       )}
@@ -245,7 +247,6 @@ export default function HomePage() {
         </section>
       )}
 
-      <Footer />
-    </div>
+    </PublicLayout>
   );
 }

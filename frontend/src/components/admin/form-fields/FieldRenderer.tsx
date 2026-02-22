@@ -15,7 +15,7 @@ interface FieldRendererProps {
   onChange: (value: unknown) => void;
   path: string;
   disabled?: boolean;
-  onPickImage?: () => void;
+  onPickImage?: (onSelect: (url: string) => void) => void;
 }
 
 export default function FieldRenderer({

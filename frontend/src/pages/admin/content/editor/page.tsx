@@ -1,9 +1,11 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { http } from "@/api/http";
 import { getPageSchema } from "@/schemas";
 import { FieldRenderer } from "@/components/admin/form-fields";
+import ImagePickerModal from "@/components/admin/ImagePickerModal";
+import type { MediaItem } from "@/api/media";
 
 interface DraftConfig {
   [key: string]: unknown;
@@ -11,8 +13,8 @@ interface DraftConfig {
 
 interface ContentDocument {
   pageKey: string;
-  draftConfig: DraftConfig;
-  draftVersion: number;
+  config: DraftConfig;
+  version: number;
   publishedVersion?: number;
   updatedAt: string;
 }
@@ -95,6 +97,21 @@ export default function ContentEditorPage() {
   const [selectedVersion, setSelectedVersion] = useState<ContentVersion | null>(null);
   const [rollbackNote, setRollbackNote] = useState("");
 
+  // Image picker state
+  const [imagePickerOpen, setImagePickerOpen] = useState(false);
+  const imageSelectCallbackRef = useRef<((url: string) => void) | null>(null);
+
+  const handlePickImage = useCallback((onSelect: (url: string) => void) => {
+    imageSelectCallbackRef.current = onSelect;
+    setImagePickerOpen(true);
+  }, []);
+
+  const handleImageSelected = useCallback((item: MediaItem) => {
+    imageSelectCallbackRef.current?.(item.url);
+    imageSelectCallbackRef.current = null;
+    setImagePickerOpen(false);
+  }, []);
+
   const pageLabels: Record<string, string> = {
     "home": "首页",
     "about": "关于我们",
@@ -105,6 +122,18 @@ export default function ContentEditorPage() {
     "contact": "联系方式",
     "global": "全局配置",
   };
+
+  const pageRoutes: Record<string, string> = {
+    "home": "/",
+    "about": "/about",
+    "advantages": "/advantages",
+    "core-services": "/core-services",
+    "cases": "/cases",
+    "experts": "/experts",
+    "contact": "/contact",
+  };
+
+  const previewUrl = pageKey ? pageRoutes[pageKey] : undefined;
 
   const loadDraft = useCallback(async () => {
     if (!pageKey) return;
@@ -137,9 +166,9 @@ export default function ContentEditorPage() {
 
       const data = response.data as ContentDocument;
       setDocument(data);
-      setConfig(JSON.stringify(data.draftConfig, null, 2));
-      setFormData(data.draftConfig || {});
-      setLastSavedVersion(data.draftVersion);
+      setConfig(JSON.stringify(data.config, null, 2));
+      setFormData(data.config || {});
+      setLastSavedVersion(data.version);
       setIsDirty(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "加载草稿失败");
@@ -199,7 +228,7 @@ export default function ContentEditorPage() {
       }, {
         headers: {
           "Authorization": `Bearer ${accessToken}`,
-          "If-Match": lastSavedVersion?.toString() || document.draftVersion.toString(),
+          "If-Match": lastSavedVersion?.toString() || document.version.toString(),
         },
         validateStatus: () => true,
       });
@@ -223,7 +252,7 @@ export default function ContentEditorPage() {
       setLastSavedVersion(data.version);
       setDocument({
         ...document,
-        draftVersion: data.version,
+        version: data.version,
         updatedAt: data.updatedAt,
       });
       setIsDirty(false);
@@ -317,7 +346,7 @@ export default function ContentEditorPage() {
       }
 
       const response = await http.post<PublishResponse | ApiErrorResponse>(`/admin/content/${pageKey}/publish`, {
-        expectedDraftVersion: document.draftVersion,
+        expectedDraftVersion: document.version,
         changeNote: `发布 ${pageLabels[pageKey] || pageKey}`,
       }, {
         headers: {
@@ -478,7 +507,7 @@ export default function ContentEditorPage() {
             编辑 {pageLabels[pageKey!] || pageKey}
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            草稿版本: {document.draftVersion} |
+            草稿版本: {document.version} |
             发布版本: {document.publishedVersion || "未发布"} |
             最后更新: {new Date(document.updatedAt).toLocaleString("zh-CN")}
           </p>
@@ -494,6 +523,16 @@ export default function ContentEditorPage() {
           >
             刷新
           </button>
+          {previewUrl && (
+            <button
+              onClick={() => window.open(`${previewUrl}?preview=draft`, "_blank")}
+              disabled={isDirty}
+              className="px-4 py-2 border border-purple-300 text-purple-700 rounded-lg hover:bg-purple-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              title={isDirty ? "请先保存草稿再预览" : "在新标签页中预览草稿效果"}
+            >
+              预览
+            </button>
+          )}
           <button
             onClick={saveDraft}
             disabled={!isDirty || saving}
@@ -558,6 +597,7 @@ export default function ContentEditorPage() {
                       handleFormDataChange({ ...formData, [key]: v });
                     }}
                     path={key}
+                    onPickImage={handlePickImage}
                   />
                 ))}
               </div>
@@ -744,6 +784,15 @@ export default function ContentEditorPage() {
           </div>
         </div>
       </div>
+
+      <ImagePickerModal
+        open={imagePickerOpen}
+        onClose={() => {
+          setImagePickerOpen(false);
+          imageSelectCallbackRef.current = null;
+        }}
+        onSelect={handleImageSelected}
+      />
     </div>
   );
 }

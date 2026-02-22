@@ -1,3 +1,23 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    --color-primary: #1a5f8f;
+    --color-primary-dark: #26548b;
+    --color-accent: #8bc34a;
+    --color-accent-hover: #7cb342;
+    --color-surface: #ffffff;
+    --color-surface-alt: #f9fafb;
+    --color-on-primary: #ffffff;
+    --color-on-surface: #111827;
+    --color-on-surface-muted: #374151;
+    --color-border: #e5e7eb;
+    --font-sans: system-ui, -apple-system, sans-serif;
+    --font-heading: system-ui, -apple-system, sans-serif;
+    --layout-max-width: 1344px;
+    --radius-card: 0.5rem;
+    --radius-button: 0.375rem;
+  }
+}

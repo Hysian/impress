@@ -1,9 +1,15 @@
-import { useState, useCallback } from "react";
-import Cropper from "react-easy-crop";
-import type { Area } from "react-easy-crop";
-import { getCroppedImg } from "@/utils/cropImage";
+import { useState, useRef, useCallback } from "react";
+import Cropper, { ReactCropperElement } from "react-cropper";
+import "cropperjs/dist/cropper.css";
 import { uploadMedia } from "@/api/media";
 import type { MediaItem } from "@/api/media";
+import {
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+  RotateCw,
+  RefreshCw,
+} from "lucide-react";
 
 interface ImageCropUploadProps {
   onUpload: (item: MediaItem) => void;
@@ -13,20 +19,14 @@ interface ImageCropUploadProps {
 
 export default function ImageCropUpload({
   onUpload,
-  aspectRatio = 16 / 9,
+  aspectRatio,
   currentImageUrl,
 }: ImageCropUploadProps) {
   const [imageSrc, setImageSrc] = useState<string | null>(null);
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showCropper, setShowCropper] = useState(false);
-
-  const onCropComplete = useCallback((_: Area, croppedAreaPixels: Area) => {
-    setCroppedAreaPixels(croppedAreaPixels);
-  }, []);
+  const cropperRef = useRef<ReactCropperElement>(null);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -42,22 +42,43 @@ export default function ImageCropUpload({
     reader.onload = () => {
       setImageSrc(reader.result as string);
       setShowCropper(true);
-      setCrop({ x: 0, y: 0 });
-      setZoom(1);
     };
     reader.readAsDataURL(file);
     // Reset input so same file can be selected again
     e.target.value = "";
   };
 
+  const getCroppedBlob = useCallback((): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const cropper = cropperRef.current?.cropper;
+      if (!cropper) {
+        reject(new Error("Cropper not initialized"));
+        return;
+      }
+      const canvas = cropper.getCroppedCanvas();
+      if (!canvas) {
+        reject(new Error("Failed to get cropped canvas"));
+        return;
+      }
+      canvas.toBlob(
+        (blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error("Canvas toBlob failed"));
+        },
+        "image/jpeg",
+        0.9
+      );
+    });
+  }, []);
+
   const handleCropConfirm = async () => {
-    if (!imageSrc || !croppedAreaPixels) return;
+    if (!imageSrc) return;
 
     setUploading(true);
     setError(null);
 
     try {
-      const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels);
+      const croppedBlob = await getCroppedBlob();
       const item = await uploadMedia(croppedBlob, `cropped-${Date.now()}.jpg`);
       onUpload(item);
       setShowCropper(false);
@@ -95,6 +116,18 @@ export default function ImageCropUpload({
     setError(null);
   };
 
+  const handleZoom = (delta: number) => {
+    cropperRef.current?.cropper.zoom(delta);
+  };
+
+  const handleRotate = (degree: number) => {
+    cropperRef.current?.cropper.rotate(degree);
+  };
+
+  const handleReset = () => {
+    cropperRef.current?.cropper.reset();
+  };
+
   return (
     <div>
       {/* Current image preview */}
@@ -129,31 +162,68 @@ export default function ImageCropUpload({
               <h3 className="text-lg font-semibold text-gray-900">裁剪图片</h3>
             </div>
 
-            <div className="relative h-96 bg-gray-900">
+            <div className="h-96 bg-gray-900">
               <Cropper
-                image={imageSrc}
-                crop={crop}
-                zoom={zoom}
-                aspect={aspectRatio}
-                onCropChange={setCrop}
-                onZoomChange={setZoom}
-                onCropComplete={onCropComplete}
+                ref={cropperRef}
+                src={imageSrc}
+                style={{ height: "100%", width: "100%" }}
+                initialAspectRatio={aspectRatio ?? 16 / 9}
+                aspectRatio={aspectRatio ?? NaN}
+                viewMode={1}
+                guides={true}
+                cropBoxMovable={true}
+                cropBoxResizable={true}
+                autoCropArea={0.8}
+                zoomOnWheel={true}
+                background={true}
+                responsive={true}
               />
             </div>
 
-            <div className="px-6 py-3">
-              <label className="flex items-center gap-3 text-sm text-gray-600">
-                <span>缩放</span>
-                <input
-                  type="range"
-                  min={1}
-                  max={3}
-                  step={0.1}
-                  value={zoom}
-                  onChange={(e) => setZoom(Number(e.target.value))}
-                  className="flex-1"
-                />
-              </label>
+            {/* Toolbar */}
+            <div className="px-6 py-3 flex items-center justify-center gap-2 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => handleZoom(-0.1)}
+                className="p-2 rounded-md hover:bg-gray-100 text-gray-600"
+                title="缩小"
+              >
+                <ZoomOut size={18} />
+              </button>
+              <button
+                type="button"
+                onClick={() => handleZoom(0.1)}
+                className="p-2 rounded-md hover:bg-gray-100 text-gray-600"
+                title="放大"
+              >
+                <ZoomIn size={18} />
+              </button>
+              <div className="w-px h-5 bg-gray-300 mx-1" />
+              <button
+                type="button"
+                onClick={() => handleRotate(-90)}
+                className="p-2 rounded-md hover:bg-gray-100 text-gray-600"
+                title="左旋 90°"
+              >
+                <RotateCcw size={18} />
+              </button>
+              <button
+                type="button"
+                onClick={() => handleRotate(90)}
+                className="p-2 rounded-md hover:bg-gray-100 text-gray-600"
+                title="右旋 90°"
+              >
+                <RotateCw size={18} />
+              </button>
+              <div className="w-px h-5 bg-gray-300 mx-1" />
+              <button
+                type="button"
+                onClick={handleReset}
+                className="p-2 rounded-md hover:bg-gray-100 text-gray-600"
+                title="重置"
+              >
+                <RefreshCw size={18} />
+              </button>
             </div>
 
             {error && (

@@ -16,6 +16,7 @@ type Config struct {
 	Env                string
 	CORSAllowedOrigins []string
 	UploadDir          string
+	BaseURL            string
 }
 
 const defaultSQLiteDSN = "file:./data/blotting.db?cache=shared&mode=rwc"
@@ -25,10 +26,10 @@ func Load() (*Config, error) {
 	cfg := &Config{}
 	var missingVars []string
 
-	// PORT (optional, default 8080)
+	// PORT (optional, default 8088)
 	portStr := os.Getenv("PORT")
 	if portStr == "" {
-		cfg.Port = 8080
+		cfg.Port = 8088
 	} else {
 		port, err := strconv.Atoi(portStr)
 		if err != nil {
@@ -77,6 +78,12 @@ func Load() (*Config, error) {
 	cfg.UploadDir = os.Getenv("UPLOAD_DIR")
 	if cfg.UploadDir == "" {
 		cfg.UploadDir = "./uploads"
+	}
+
+	// BASE_URL (optional, default "https://www.example.com")
+	cfg.BaseURL = os.Getenv("BASE_URL")
+	if cfg.BaseURL == "" {
+		cfg.BaseURL = "https://www.example.com"
 	}
 
 	// Return validation error if required variables are missing

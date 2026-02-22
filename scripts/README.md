@@ -150,7 +150,7 @@ Deploys frontend and backend artifacts to a remote server using SSH.
 - `BACKEND_SERVICE`: Systemd service name (default: `blotting-api`)
 - `FRONTEND_PATH`: Frontend deployment path (default: `${DEPLOY_ROOT}/frontend`)
 - `BACKEND_PATH`: Backend deployment path (default: `${DEPLOY_ROOT}/backend`)
-- `BACKEND_HEALTH_URL`: HTTP health check URL on remote host (default: `http://127.0.0.1:8080/health`)
+- `BACKEND_HEALTH_URL`: HTTP health check URL on remote host (default: `http://127.0.0.1:8088/health`)
 - `DEPLOY_AUTO_APPROVE`: Skip interactive confirmation (`true`/`1`/`yes`) for CI/CD
 
 **Deployment Process:**

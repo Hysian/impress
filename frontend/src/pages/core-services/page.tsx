@@ -1,7 +1,6 @@
 import { useTranslation } from 'react-i18next';
-import Header from '../../components/feature/Header';
-import Footer from '../../components/feature/Footer';
-import PageHero from '../../components/feature/PageHero';
+import { PublicLayout } from '@/theme/layouts';
+import PageHero from '@/components/feature/PageHero';
 import { usePublicContent } from '@/hooks/usePublicContent';
 import type { Locale } from '@/api/publicContent';
 
@@ -56,7 +55,7 @@ function ServiceBlockText({
 }) {
   return (
     <div className={`w-full h-full py-12 px-10 md:px-16 ${className}`.trim()}>
-      <h2 className="text-xl md:text-2xl font-bold text-[#1a5f8f] mb-4">
+      <h2 className="text-xl md:text-2xl font-bold text-primary mb-4">
         {title}
       </h2>
       <p className="text-base text-gray-700 leading-relaxed">
@@ -77,17 +76,21 @@ export default function CoreServicesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-gray-600">Loading...</div>
-      </div>
+      <PublicLayout>
+        <div className="flex items-center justify-center py-32">
+          <div className="text-gray-600">Loading...</div>
+        </div>
+      </PublicLayout>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-red-600">Failed to load page content</div>
-      </div>
+      <PublicLayout>
+        <div className="flex items-center justify-center py-32">
+          <div className="text-red-600">Failed to load page content</div>
+        </div>
+      </PublicLayout>
     );
   }
 
@@ -96,8 +99,7 @@ export default function CoreServicesPage() {
   const services = pageConfig.services || [];
 
   return (
-    <div className="min-h-screen bg-white">
-      <Header />
+    <PublicLayout>
 
       <PageHero
         label={hero.label || ''}
@@ -112,7 +114,7 @@ export default function CoreServicesPage() {
           const imageSrc = service.image || `/images/service/${index + 1}.png`;
           return (
             <section key={index} className="bg-white">
-              <div className="max-w-[1344px] mx-auto px-4 md:px-6">
+              <div className="max-w-layout mx-auto px-4 md:px-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 items-center gap-8 lg:gap-12">
                   {isImageLeft ? (
                     <>
@@ -140,7 +142,6 @@ export default function CoreServicesPage() {
         })}
       </div>
 
-      <Footer />
-    </div>
+    </PublicLayout>
   );
 }

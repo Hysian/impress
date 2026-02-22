@@ -55,7 +55,7 @@ export default function PageHero({
             'absolute left-0 right-0 bottom-[20%] z-10'
         
       >
-        <div className="max-w-[1344px] w-full mx-auto px-4 md:px-6">
+        <div className="max-w-layout w-full mx-auto px-4 md:px-6">
           {label && (
             <p className="text-white text-sm sm:text-base mb-1">{label}</p>
           )}

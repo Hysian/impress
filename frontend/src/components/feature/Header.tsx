@@ -54,8 +54,8 @@ export default function Header() {
       }`}
     >
       {/* Top Language Bar */}
-      <div className="bg-[#1a5f8f] text-white py-2">
-        <div className="max-w-[1344px] mx-auto px-4 md:px-6 flex justify-end items-center">
+      <div className="bg-primary text-white py-2">
+        <div className="max-w-layout mx-auto px-4 md:px-6 flex justify-end items-center">
           <button
             onClick={toggleLanguage}
             className="text-sm hover:opacity-80 transition-opacity whitespace-nowrap cursor-pointer"
@@ -67,7 +67,7 @@ export default function Header() {
 
       {/* Main Navigation */}
       <nav className="py-8">
-        <div className="max-w-[1344px] mx-auto px-4 md:px-6">
+        <div className="max-w-layout mx-auto px-4 md:px-6">
           <div className="flex justify-between items-center">
             {/* Logo */}
             <div className="flex items-center">
@@ -88,7 +88,7 @@ export default function Header() {
                     key={index}
                     to={item.path || '/'}
                     className={`text-sm font-medium transition-colors whitespace-nowrap cursor-pointer ${
-                      isScrolled ? 'text-gray-700 hover:text-[#8bc34a]' : 'text-white hover:text-[#8bc34a]'
+                      isScrolled ? 'text-gray-700 hover:text-accent' : 'text-white hover:text-accent'
                     }`}
                   >
                     {item.label}
@@ -119,7 +119,7 @@ export default function Header() {
                 <Link
                   key={index}
                   to={item.path || '/'}
-                  className="block text-sm font-medium text-gray-700 hover:text-[#8bc34a] transition-colors cursor-pointer"
+                  className="block text-sm font-medium text-gray-700 hover:text-accent transition-colors cursor-pointer"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   {item.label}

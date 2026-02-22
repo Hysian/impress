@@ -423,14 +423,14 @@ Run the following validation checklist:
 **Auth Endpoints**
 ```bash
 # Test login
-curl -X POST http://localhost:8080/auth/login \
+curl -X POST http://localhost:8088/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"admin123"}'
 
 # Expected: 200 OK with access_token and refresh_token
 
 # Test /auth/me
-curl http://localhost:8080/auth/me \
+curl http://localhost:8088/auth/me \
   -H "Authorization: Bearer <access_token>"
 
 # Expected: 200 OK with user details
@@ -439,7 +439,7 @@ curl http://localhost:8080/auth/me \
 **Public Content Endpoints**
 ```bash
 # Test published content retrieval
-curl http://localhost:8080/public/content/home
+curl http://localhost:8088/public/content/home
 
 # Expected: 200 OK with published config matching SQLite version
 ```
@@ -447,13 +447,13 @@ curl http://localhost:8080/public/content/home
 **Admin Content Endpoints** (requires authentication)
 ```bash
 # Get draft content
-curl http://localhost:8080/admin/content/home/draft \
+curl http://localhost:8088/admin/content/home/draft \
   -H "Authorization: Bearer <access_token>"
 
 # Expected: 200 OK with draft config and version matching SQLite
 
 # Update draft
-curl -X PUT http://localhost:8080/admin/content/home/draft \
+curl -X PUT http://localhost:8088/admin/content/home/draft \
   -H "Authorization: Bearer <access_token>" \
   -H "Content-Type: application/json" \
   -H "If-Match: <current_version>" \
@@ -462,13 +462,13 @@ curl -X PUT http://localhost:8080/admin/content/home/draft \
 # Expected: 200 OK with incremented version
 
 # Validate draft
-curl -X POST http://localhost:8080/admin/content/home/validate \
+curl -X POST http://localhost:8088/admin/content/home/validate \
   -H "Authorization: Bearer <access_token>"
 
 # Expected: 200 OK with validation results
 
 # Publish content
-curl -X POST http://localhost:8080/admin/content/home/publish \
+curl -X POST http://localhost:8088/admin/content/home/publish \
   -H "Authorization: Bearer <access_token>" \
   -H "Content-Type: application/json" \
   -d '{"expectedDraftVersion":<current_version>}'
@@ -476,7 +476,7 @@ curl -X POST http://localhost:8080/admin/content/home/publish \
 # Expected: 200 OK with new published version
 
 # List versions
-curl http://localhost:8080/admin/content/home/versions \
+curl http://localhost:8088/admin/content/home/versions \
   -H "Authorization: Bearer <access_token>"
 
 # Expected: 200 OK with version history matching SQLite
@@ -487,7 +487,7 @@ curl http://localhost:8080/admin/content/home/versions \
 ```bash
 # Measure public endpoint latency
 for i in {1..100}; do
-  curl -o /dev/null -s -w "%{time_total}\n" http://localhost:8080/public/content/home
+  curl -o /dev/null -s -w "%{time_total}\n" http://localhost:8088/public/content/home
 done | awk '{sum+=$1; count++} END {print "Average:", sum/count, "seconds"}'
 
 # Expected: < 50ms average (local Docker network)
@@ -517,7 +517,7 @@ DB_DSN="host=prod-db.example.com user=blotting_user password=SECURE_PASSWORD dbn
 docker compose restart backend
 
 # Verify health
-curl http://localhost:8080/health
+curl http://localhost:8088/health
 ```
 
 **Standalone**
@@ -575,10 +575,10 @@ sqlite3 data/blotting.db "SELECT COUNT(*) FROM users;"
 
 ```bash
 # Health check
-curl http://localhost:8080/health
+curl http://localhost:8088/health
 
 # Login test
-curl -X POST http://localhost:8080/auth/login \
+curl -X POST http://localhost:8088/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"admin123"}'
 ```

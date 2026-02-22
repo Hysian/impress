@@ -1,6 +1,7 @@
 package public
 
 import (
+	"context"
 	"time"
 
 	"blotting-consultancy/internal/model"
@@ -14,12 +15,14 @@ import (
 // Handler handles public content-related HTTP requests
 type Handler struct {
 	docRepo repository.ContentDocumentRepository
+	pvRepo  repository.PageViewRepository
 }
 
 // NewHandler creates a new public content handler
-func NewHandler(docRepo repository.ContentDocumentRepository) *Handler {
+func NewHandler(docRepo repository.ContentDocumentRepository, pvRepo repository.PageViewRepository) *Handler {
 	return &Handler{
 		docRepo: docRepo,
+		pvRepo:  pvRepo,
 	}
 }
 
@@ -59,6 +62,14 @@ func (h *Handler) GetPublicContent(c *gin.Context) {
 	// Record success with latency
 	latency := time.Since(startTime)
 	metrics.Global().RecordPublicGetSuccess(latency)
+
+	// Asynchronously record page view
+	go func() {
+		_ = h.pvRepo.Create(context.Background(), &model.PageView{
+			PageKey: pageKeyStr,
+			Locale:  locale,
+		})
+	}()
 
 	// Return published-only data (never expose draft fields)
 	c.JSON(200, gin.H{

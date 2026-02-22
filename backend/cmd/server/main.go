@@ -13,11 +13,21 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm/logger"
 
+	"blotting-consultancy/internal/backup"
 	"blotting-consultancy/internal/db"
+	analyticsHandler "blotting-consultancy/internal/handler/analytics"
+	articleHandler "blotting-consultancy/internal/handler/article"
+	auditlogHandler "blotting-consultancy/internal/handler/auditlog"
 	authHandler "blotting-consultancy/internal/handler/auth"
+	backupHandler "blotting-consultancy/internal/handler/backup"
+	categoryHandler "blotting-consultancy/internal/handler/category"
 	contentHandler "blotting-consultancy/internal/handler/content"
 	mediaHandler "blotting-consultancy/internal/handler/media"
+	pageHandler "blotting-consultancy/internal/handler/page"
 	publicHandler "blotting-consultancy/internal/handler/public"
+	sitemapHandler "blotting-consultancy/internal/handler/sitemap"
+	tagHandler "blotting-consultancy/internal/handler/tag"
+	themeHandler "blotting-consultancy/internal/handler/theme"
 	"blotting-consultancy/internal/middleware"
 	"blotting-consultancy/internal/model"
 	"blotting-consultancy/internal/repository"
@@ -99,6 +109,13 @@ func main() {
 		&model.ContentDocument{},
 		&model.ContentVersion{},
 		&model.Media{},
+		&model.PageView{},
+		&model.Category{},
+		&model.Tag{},
+		&model.Article{},
+		&model.BackupRecord{},
+		&model.AuditEvent{},
+		&model.Page{},
 	); err != nil {
 		log.Error("Failed to run migrations", "error", err)
 		os.Exit(1)
@@ -120,6 +137,12 @@ func main() {
 	contentDocRepo := repository.NewGormContentDocumentRepository(database.DB)
 	contentVersionRepo := repository.NewGormContentVersionRepository(database.DB)
 	mediaRepo := repository.NewGormMediaRepository(database.DB)
+	pageViewRepo := repository.NewGormPageViewRepository(database.DB)
+	categoryRepo := repository.NewGormCategoryRepository(database.DB)
+	tagRepo := repository.NewGormTagRepository(database.DB)
+	articleRepo := repository.NewGormArticleRepository(database.DB)
+	auditEventRepo := repository.NewGormAuditEventRepository(database.DB)
+	pageRepo := repository.NewGormPageRepository(database.DB)
 	log.Info("Repositories initialized")
 
 	// Run seed (idempotent)
@@ -144,7 +167,12 @@ func main() {
 
 	// Initialize audit logger
 	auditLog := audit.NewLogger(log)
-	log.Info("Audit logger initialized")
+	auditDbWriter := audit.NewDbWriter(auditEventRepo)
+	_ = auditDbWriter // available for future use alongside auditLog
+
+	// Initialize backup service
+	backupSvc := backup.NewService(database.DB, "./backups", 10)
+	log.Info("Audit logger and backup service initialized")
 
 	// Initialize handlers
 	authHandlerInst := authHandler.NewHandler(userRepo, refreshTokenRepo, cfg)
@@ -156,8 +184,17 @@ func main() {
 		contentService,
 		auditLog,
 	)
-	publicHandlerInst := publicHandler.NewHandler(contentDocRepo)
+	publicHandlerInst := publicHandler.NewHandler(contentDocRepo, pageViewRepo)
 	mediaHandlerInst := mediaHandler.NewHandler(mediaRepo, cfg.UploadDir, "")
+	analyticsHandlerInst := analyticsHandler.NewHandler(pageViewRepo)
+	categoryHandlerInst := categoryHandler.NewHandler(categoryRepo)
+	tagHandlerInst := tagHandler.NewHandler(tagRepo)
+	articleHandlerInst := articleHandler.NewHandler(articleRepo, categoryRepo, tagRepo)
+	backupHandlerInst := backupHandler.NewHandler(backupSvc)
+	auditlogHandlerInst := auditlogHandler.NewHandler(auditEventRepo)
+	sitemapHandlerInst := sitemapHandler.NewHandler(contentDocRepo, cfg.BaseURL)
+	pageHandlerInst := pageHandler.NewHandler(pageRepo)
+	themeHandlerInst := themeHandler.NewHandler(contentDocRepo)
 	log.Info("Handlers initialized")
 
 	// Setup Gin router
@@ -240,16 +277,31 @@ func main() {
 		})
 	})
 
+	// Sitemap (no auth required)
+	router.GET("/sitemap.xml", sitemapHandlerInst.GetSitemap)
+
 	// Public routes (no auth required)
 	publicGroup := router.Group("/public")
+	publicGroup.Use(middleware.PublicRateLimit())
 	{
 		publicGroup.GET("/content/:pageKey", publicHandlerInst.GetPublicContent)
+
+		// Public article routes
+		publicGroup.GET("/articles", articleHandlerInst.PublicList)
+		publicGroup.GET("/articles/:slug", articleHandlerInst.PublicGetBySlug)
+
+		// Public page routes
+		publicGroup.GET("/pages", pageHandlerInst.PublicList)
+		publicGroup.GET("/pages/:slug", pageHandlerInst.PublicGetBySlug)
+
+		// Public theme route
+		publicGroup.GET("/theme", themeHandlerInst.PublicGet)
 	}
 
 	// Auth routes (no auth middleware, but handlers validate credentials)
 	authGroup := router.Group("/auth")
 	{
-		authGroup.POST("/login", authHandlerInst.Login)
+		authGroup.POST("/login", middleware.LoginRateLimit(), authHandlerInst.Login)
 		authGroup.POST("/refresh", authHandlerInst.Refresh)
 		authGroup.POST("/logout", authHandlerInst.Logout)
 
@@ -287,6 +339,47 @@ func main() {
 		adminGroup.POST("/media/upload", mediaHandlerInst.Upload)
 		adminGroup.GET("/media", mediaHandlerInst.List)
 		adminGroup.DELETE("/media/:id", mediaHandlerInst.Delete)
+
+		// Analytics
+		adminGroup.GET("/analytics/summary", analyticsHandlerInst.GetSummary)
+
+		// Article management
+		adminGroup.GET("/articles", articleHandlerInst.AdminList)
+		adminGroup.GET("/articles/:id", articleHandlerInst.AdminGetByID)
+		adminGroup.POST("/articles", articleHandlerInst.AdminCreate)
+		adminGroup.PUT("/articles/:id", articleHandlerInst.AdminUpdate)
+		adminGroup.DELETE("/articles/:id", articleHandlerInst.AdminDelete)
+
+		// Category management
+		adminGroup.GET("/categories", categoryHandlerInst.List)
+		adminGroup.POST("/categories", categoryHandlerInst.Create)
+		adminGroup.PUT("/categories/:id", categoryHandlerInst.Update)
+		adminGroup.DELETE("/categories/:id", categoryHandlerInst.Delete)
+
+		// Tag management
+		adminGroup.GET("/tags", tagHandlerInst.List)
+		adminGroup.POST("/tags", tagHandlerInst.Create)
+		adminGroup.DELETE("/tags/:id", tagHandlerInst.Delete)
+
+		// Backup management
+		adminGroup.GET("/backups", backupHandlerInst.List)
+		adminGroup.POST("/backups/trigger", backupHandlerInst.Trigger)
+
+		// Audit logs
+		adminGroup.GET("/audit-logs", auditlogHandlerInst.List)
+
+		// Page management
+		adminGroup.GET("/pages", pageHandlerInst.AdminList)
+		adminGroup.GET("/pages/:id", pageHandlerInst.AdminGetByID)
+		adminGroup.POST("/pages", pageHandlerInst.AdminCreate)
+		adminGroup.PUT("/pages/:id", pageHandlerInst.AdminUpdate)
+		adminGroup.DELETE("/pages/:id", pageHandlerInst.AdminDelete)
+		adminGroup.PUT("/pages/:id/publish", pageHandlerInst.AdminPublish)
+		adminGroup.PUT("/pages/:id/unpublish", pageHandlerInst.AdminUnpublish)
+
+		// Theme management
+		adminGroup.GET("/theme", themeHandlerInst.AdminGet)
+		adminGroup.PUT("/theme", themeHandlerInst.AdminUpdate)
 	}
 
 	// Serve uploaded files statically

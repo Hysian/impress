@@ -40,8 +40,8 @@ export default function Footer() {
   const sections = footer.sections || [];
 
   return (
-    <footer className="bg-[#1a5f8f] text-white">
-      <div className="max-w-[1344px] mx-auto px-4 md:px-6 py-12">
+    <footer className="bg-primary text-white">
+      <div className="max-w-layout mx-auto px-4 md:px-6 py-12">
         <div className="flex flex-col md:flex-row md:items-start gap-8">
           {/* Company Info - 左侧 */}
           <div>
@@ -70,7 +70,7 @@ export default function Footer() {
                         <li key={linkIndex}>
                           <a
                             href={link.href || '#'}
-                            className="text-gray-300 hover:text-[#8bc34a] transition-colors cursor-pointer"
+                            className="text-gray-300 hover:text-accent transition-colors cursor-pointer"
                           >
                             {link.label}
                           </a>
@@ -87,7 +87,7 @@ export default function Footer() {
         {/* Copyright */}
         <div className="mt-12 pt-8 border-t border-white/20 text-center">
           <p className="text-sm text-gray-300">
-            {footer.copyright || '© 2024 Blotting Consultancy'} | <a href="https://readdy.ai/?ref=logo" target="_blank" rel="noopener noreferrer" className="hover:text-[#8bc34a] transition-colors cursor-pointer">Website Builder</a>
+            {footer.copyright || '© 2024 Blotting Consultancy'} | <a href="https://readdy.ai/?ref=logo" target="_blank" rel="noopener noreferrer" className="hover:text-accent transition-colors cursor-pointer">Website Builder</a>
           </p>
         </div>
       </div>

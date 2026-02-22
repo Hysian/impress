@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import Header from '../../components/feature/Header';
-import Footer from '../../components/feature/Footer';
 import PageHero from '../../components/feature/PageHero';
 import { usePublicContent } from '@/hooks/usePublicContent';
 import type { Locale } from '@/api/publicContent';
+import { PublicLayout } from '@/theme/layouts';
 
 interface HeroConfig {
   label?: string;
@@ -42,17 +41,21 @@ export default function ExpertsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-gray-600">Loading...</div>
-      </div>
+      <PublicLayout>
+        <div className="min-h-screen bg-white flex items-center justify-center">
+          <div className="text-gray-600">Loading...</div>
+        </div>
+      </PublicLayout>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-red-600">Failed to load page content</div>
-      </div>
+      <PublicLayout>
+        <div className="min-h-screen bg-white flex items-center justify-center">
+          <div className="text-red-600">Failed to load page content</div>
+        </div>
+      </PublicLayout>
     );
   }
 
@@ -60,9 +63,7 @@ export default function ExpertsPage() {
   const bioParagraphs = activeExpert?.bio ? activeExpert.bio.split(/\n\n+/).filter(Boolean) : [];
 
   return (
-    <div className="min-h-screen bg-white">
-      <Header />
-
+    <PublicLayout>
       <PageHero
         label={hero.label}
         title={hero.title}
@@ -71,11 +72,11 @@ export default function ExpertsPage() {
 
       {/* 专家介绍 */}
       <section className="py-12 md:py-16 lg:py-24 bg-white">
-        <div className="max-w-[1344px] mx-auto px-4 md:px-6">
+        <div className="max-w-layout mx-auto px-4 md:px-6">
           {/* 区块标题 */}
           {pageConfig.sectionTitle && (
             <div className="flex items-center mb-10 md:mb-12">
-              <div className="w-[26px] h-[26px] bg-[#8bc34a] mr-3 flex-shrink-0 rounded-full" />
+              <div className="w-[26px] h-[26px] bg-accent mr-3 flex-shrink-0 rounded-full" />
               <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
                 {pageConfig.sectionTitle}
               </h2>
@@ -95,7 +96,7 @@ export default function ExpertsPage() {
                     />
                   </div>
                   {expert.name && (
-                    <h3 className="text-lg md:text-xl font-bold text-[#1a5f8f]">
+                    <h3 className="text-lg md:text-xl font-bold text-primary">
                       {expert.name}
                     </h3>
                   )}
@@ -120,7 +121,7 @@ export default function ExpertsPage() {
                     onClick={() => setActiveId(expert.id)}
                     className={`px-4 py-3 text-left rounded-md transition-colors cursor-pointer whitespace-nowrap ${
                       activeId === expert.id
-                        ? 'bg-[#1a5f8f] text-white'
+                        ? 'bg-primary text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
@@ -139,8 +140,6 @@ export default function ExpertsPage() {
           )}
         </div>
       </section>
-
-      <Footer />
-    </div>
+    </PublicLayout>
   );
 }

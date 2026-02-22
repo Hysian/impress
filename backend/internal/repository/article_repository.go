@@ -1,0 +1,31 @@
+package repository
+
+import (
+	"context"
+
+	"blotting-consultancy/internal/model"
+)
+
+// ArticleRepository defines the interface for article data access
+type ArticleRepository interface {
+	// Create creates a new article
+	Create(ctx context.Context, article *model.Article) error
+
+	// FindByID finds an article by ID with Category and Tags preloaded
+	FindByID(ctx context.Context, id uint) (*model.Article, error)
+
+	// FindBySlug finds an article by slug with Category and Tags preloaded
+	FindBySlug(ctx context.Context, slug string) (*model.Article, error)
+
+	// Update updates an article
+	Update(ctx context.Context, article *model.Article) error
+
+	// Delete deletes an article by ID
+	Delete(ctx context.Context, id uint) error
+
+	// List returns a paginated list of articles with optional filters
+	List(ctx context.Context, offset, limit int, status string, categoryID *uint, tagID *uint) ([]*model.Article, int64, error)
+
+	// ListPublished returns a paginated list of published articles with optional filters
+	ListPublished(ctx context.Context, offset, limit int, categorySlug string, tagSlug string) ([]*model.Article, int64, error)
+}

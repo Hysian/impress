@@ -3,6 +3,7 @@ package content
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -13,9 +14,11 @@ import (
 
 // GetDraftResponse represents the response for GET /admin/content/{pageKey}/draft
 type GetDraftResponse struct {
-	PageKey string         `json:"pageKey"`
-	Version int            `json:"version"`
-	Config  model.JSONMap  `json:"config"`
+	PageKey          string         `json:"pageKey"`
+	Version          int            `json:"version"`
+	Config           model.JSONMap  `json:"config"`
+	PublishedVersion int            `json:"publishedVersion"`
+	UpdatedAt        time.Time      `json:"updatedAt"`
 }
 
 // GetDraft handles GET /admin/content/{pageKey}/draft
@@ -42,9 +45,11 @@ func (h *Handler) GetDraft(c *gin.Context) {
 
 	// Return draft config
 	response := GetDraftResponse{
-		PageKey: string(doc.PageKey),
-		Version: doc.DraftVersion,
-		Config:  doc.DraftConfig,
+		PageKey:          string(doc.PageKey),
+		Version:          doc.DraftVersion,
+		Config:           doc.DraftConfig,
+		PublishedVersion: doc.PublishedVersion,
+		UpdatedAt:        doc.UpdatedAt,
 	}
 
 	c.JSON(http.StatusOK, response)
