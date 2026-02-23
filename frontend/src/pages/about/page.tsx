@@ -4,9 +4,15 @@ import PageHero from '@/components/feature/PageHero';
 import { usePublicContent } from '@/hooks/usePublicContent';
 import type { Locale } from '@/api/publicContent';
 
+interface MediaRef {
+  url?: string;
+  alt?: string;
+}
+
 interface HeroConfig {
   label?: string;
   title?: string;
+  image?: MediaRef;
 }
 
 interface CompanyProfileConfig {
@@ -14,16 +20,17 @@ interface CompanyProfileConfig {
   description?: string;
 }
 
-interface SectionConfig {
+interface BlockConfig {
+  layout?: string;
+  title?: string;
   description?: string;
-  image?: string;
+  image?: MediaRef;
 }
 
 interface AboutPageConfig {
   hero?: HeroConfig;
   companyProfile?: CompanyProfileConfig;
-  section2?: SectionConfig;
-  section3?: SectionConfig;
+  blocks?: BlockConfig[];
 }
 
 export default function AboutPage() {
@@ -58,8 +65,7 @@ export default function AboutPage() {
   const pageConfig = (config as AboutPageConfig) || {};
   const hero = pageConfig.hero || {};
   const companyProfile = pageConfig.companyProfile || {};
-  const section2 = pageConfig.section2 || {};
-  const section3 = pageConfig.section3 || {};
+  const blocks = pageConfig.blocks || [];
 
   return (
     <PublicLayout>
@@ -68,6 +74,7 @@ export default function AboutPage() {
         label={hero.label || ''}
         title={hero.title || ''}
         alt="About Us Hero"
+        imageSrc={hero.image?.url}
       />
 
       {/* Section 1: 公司简介 - 标题左、描述右 */}
@@ -92,52 +99,60 @@ export default function AboutPage() {
         </section>
       )}
 
-      {/* 公司简介下方：两段图文区块，样式与我们的优势一致 */}
-      <div className="py-12 md:py-16 lg:py-24 bg-white">
-        {/* Section 2: 图左文右 */}
-        {section2.description && (
-          <section className="bg-white">
-            <div className="max-w-layout mx-auto px-4 md:px-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-                <div className="w-full aspect-[4/3] max-h-[400px] lg:max-h-none overflow-hidden rounded-lg order-2 lg:order-1">
-                  <img
-                    src={section2.image || '/images/about-us/about-us-1.png'}
-                    alt="About Us"
-                    className="w-full h-full object-cover object-center"
-                  />
+      {/* 内容区块：根据 layout 决定图文左右排布 */}
+      {blocks.length > 0 && (
+        <div className="py-12 md:py-16 lg:py-24 bg-white">
+          {blocks.map((block, index) => {
+            if (!block.description) return null;
+            const isImageLeft = block.layout === 'imageLeft' || (block.layout == null && index % 2 === 0);
+            return (
+              <section key={index} className="bg-white">
+                <div className="max-w-layout mx-auto px-4 md:px-6 mb-12">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+                    {isImageLeft ? (
+                      <>
+                        <div className="w-full aspect-[4/3] max-h-[400px] lg:max-h-none overflow-hidden rounded-lg order-2 lg:order-1">
+                          <img
+                            src={block.image?.url || `/images/about-us/about-us-${index + 1}.png`}
+                            alt={block.image?.alt || block.title || 'About Us'}
+                            className="w-full h-full object-cover object-center"
+                          />
+                        </div>
+                        <div className="w-full py-12 px-10 md:px-16 order-1 lg:order-2">
+                          {block.title && (
+                            <h2 className="text-3xl md:text-4xl font-bold text-primary mb-4">{block.title}</h2>
+                          )}
+                          <p className="text-xl md:text-2xl leading-relaxed text-primary-dark">
+                            {block.description}
+                          </p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-full py-12 px-10 md:px-16">
+                          {block.title && (
+                            <h2 className="text-3xl md:text-4xl font-bold text-primary mb-4">{block.title}</h2>
+                          )}
+                          <p className="text-xl md:text-2xl leading-relaxed text-primary-dark">
+                            {block.description}
+                          </p>
+                        </div>
+                        <div className="w-full aspect-[4/3] max-h-[400px] lg:max-h-none overflow-hidden rounded-lg">
+                          <img
+                            src={block.image?.url || `/images/about-us/about-us-${index + 1}.png`}
+                            alt={block.image?.alt || block.title || 'About Us'}
+                            className="w-full h-full object-cover object-center"
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
-                <div className="w-full py-12 px-10 md:px-16 order-1 lg:order-2">
-                  <p className="text-xl md:text-2xl leading-relaxed text-primary-dark">
-                    {section2.description}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* Section 3: 文左图右 */}
-        {section3.description && (
-          <section className="bg-white">
-            <div className="max-w-layout mx-auto px-4 md:px-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-                <div className="w-full py-12 px-10 md:px-16">
-                  <p className="text-xl md:text-2xl leading-relaxed text-primary-dark">
-                    {section3.description}
-                  </p>
-                </div>
-                <div className="w-full aspect-[4/3] max-h-[400px] lg:max-h-none overflow-hidden rounded-lg">
-                  <img
-                    src={section3.image || '/images/about-us/about-us-2.png'}
-                    alt="About Us"
-                    className="w-full h-full object-cover object-center"
-                  />
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
-      </div>
+              </section>
+            );
+          })}
+        </div>
+      )}
 
     </PublicLayout>
   );

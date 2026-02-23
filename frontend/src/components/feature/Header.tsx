@@ -4,18 +4,24 @@ import { useTranslation } from 'react-i18next';
 import { usePublicContent } from '@/hooks/usePublicContent';
 import type { Locale } from '@/api/publicContent';
 
-interface NavItem {
-  label?: string;
-  path?: string;
+interface MediaRef {
+  url?: string;
+  alt?: string;
 }
 
-interface HeaderConfig {
-  logo?: string;
-  navigation?: NavItem[];
+interface NavItem {
+  label?: string;
+  href?: string;
 }
 
 interface GlobalConfig {
-  header?: HeaderConfig;
+  branding?: {
+    logo?: MediaRef;
+    companyName?: string;
+  };
+  nav?: {
+    items?: NavItem[];
+  };
 }
 
 export default function Header() {
@@ -30,9 +36,9 @@ export default function Header() {
   });
 
   const globalConfig = (config as GlobalConfig) || {};
-  const header = globalConfig.header || {};
-  const navigation = header.navigation || [];
-  const logoSrc = header.logo || '/images/logo.png';
+  const navigation = globalConfig.nav?.items || [];
+  const logoSrc = globalConfig.branding?.logo?.url || '/images/logo.png';
+  const logoAlt = globalConfig.branding?.companyName || 'Blotting Consultancy';
 
   useEffect(() => {
     const handleScroll = () => {
@@ -74,7 +80,7 @@ export default function Header() {
               <Link to="/">
                 <img
                   src={logoSrc}
-                  alt="Blotting Consultancy"
+                  alt={logoAlt}
                   className="h-10 w-auto"
                 />
               </Link>
@@ -86,7 +92,7 @@ export default function Header() {
                 {navigation.map((item, index) => (
                   <Link
                     key={index}
-                    to={item.path || '/'}
+                    to={item.href || '/'}
                     className={`text-sm font-medium transition-colors whitespace-nowrap cursor-pointer ${
                       isScrolled ? 'text-gray-700 hover:text-accent' : 'text-white hover:text-accent'
                     }`}
@@ -118,7 +124,7 @@ export default function Header() {
               {navigation.map((item, index) => (
                 <Link
                   key={index}
-                  to={item.path || '/'}
+                  to={item.href || '/'}
                   className="block text-sm font-medium text-gray-700 hover:text-accent transition-colors cursor-pointer"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >

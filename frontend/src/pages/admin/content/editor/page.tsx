@@ -6,9 +6,87 @@ import { getPageSchema } from "@/schemas";
 import { FieldRenderer } from "@/components/admin/form-fields";
 import ImagePickerModal from "@/components/admin/ImagePickerModal";
 import type { MediaItem } from "@/api/media";
+import type { FieldDescriptor, PageSchema } from "@/types/schema";
 
 interface DraftConfig {
   [key: string]: unknown;
+}
+
+/**
+ * Migrate legacy field_0/field_1/... keys in array items to proper named keys
+ * based on the schema's itemFields[].key property. Recurses through the entire config.
+ */
+function migrateFormData(data: DraftConfig, schema: PageSchema): DraftConfig {
+  const result = { ...data };
+  for (const [key, descriptor] of Object.entries(schema.fields)) {
+    if (result[key] !== undefined) {
+      result[key] = migrateField(result[key], descriptor);
+    }
+  }
+  return result;
+}
+
+function migrateField(value: unknown, descriptor: FieldDescriptor): unknown {
+  if (value == null) return value;
+
+  if (descriptor.type === "object" && "fields" in descriptor) {
+    const obj = value as Record<string, unknown>;
+    const result = { ...obj };
+    for (const [key, field] of Object.entries(descriptor.fields)) {
+      if (result[key] !== undefined) {
+        result[key] = migrateField(result[key], field);
+      }
+    }
+    return result;
+  }
+
+  if (descriptor.type === "array" && "itemFields" in descriptor) {
+    const arr = value as unknown[];
+    if (!Array.isArray(arr) || arr.length === 0) return value;
+    const itemFields = descriptor.itemFields;
+
+    if (itemFields.length <= 1) {
+      // Single-field arrays: recurse into each item if the field is complex
+      if (itemFields.length === 1 && (itemFields[0].type === "object" || itemFields[0].type === "array")) {
+        return arr.map((item) => migrateField(item, itemFields[0]));
+      }
+      return value;
+    }
+
+    // Multi-field arrays: remap field_N → named keys
+    const hasNamedKeys = itemFields.some((f) => f.key);
+    if (!hasNamedKeys) return value;
+
+    return arr.map((item) => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) return item;
+      const obj = item as Record<string, unknown>;
+      const hasLegacy = itemFields.some((_, idx) => `field_${idx}` in obj);
+      const hasProper = itemFields.some((f) => f.key && f.key in obj);
+      if (!hasLegacy || hasProper) {
+        // Already using proper keys, but still recurse for nested arrays/objects
+        const result = { ...obj };
+        itemFields.forEach((field, idx) => {
+          const fieldKey = field.key || `field_${idx}`;
+          if (result[fieldKey] !== undefined) {
+            result[fieldKey] = migrateField(result[fieldKey], field);
+          }
+        });
+        return result;
+      }
+
+      // Remap field_N to named keys
+      const newObj: Record<string, unknown> = {};
+      itemFields.forEach((field, idx) => {
+        const newKey = field.key || `field_${idx}`;
+        const oldKey = `field_${idx}`;
+        const val = obj[oldKey] ?? obj[newKey];
+        newObj[newKey] = migrateField(val, field);
+      });
+      return newObj;
+    });
+  }
+
+  return value;
 }
 
 interface ContentDocument {
@@ -166,10 +244,15 @@ export default function ContentEditorPage() {
 
       const data = response.data as ContentDocument;
       setDocument(data);
-      setConfig(JSON.stringify(data.config, null, 2));
-      setFormData(data.config || {});
+      const rawConfig = data.config || {};
+      // Migrate legacy field_0/field_1 keys to proper named keys
+      const pageSchema = pageKey ? getPageSchema(pageKey) : undefined;
+      const migrated = pageSchema ? migrateFormData(rawConfig, pageSchema) : rawConfig;
+      const wasMigrated = JSON.stringify(migrated) !== JSON.stringify(rawConfig);
+      setConfig(JSON.stringify(migrated, null, 2));
+      setFormData(migrated);
       setLastSavedVersion(data.version);
-      setIsDirty(false);
+      setIsDirty(wasMigrated);
     } catch (err) {
       setError(err instanceof Error ? err.message : "加载草稿失败");
     } finally {

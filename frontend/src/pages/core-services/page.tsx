@@ -4,15 +4,21 @@ import PageHero from '@/components/feature/PageHero';
 import { usePublicContent } from '@/hooks/usePublicContent';
 import type { Locale } from '@/api/publicContent';
 
+interface MediaRef {
+  url?: string;
+  alt?: string;
+}
+
 interface HeroConfig {
   label?: string;
   title?: string;
+  image?: MediaRef;
 }
 
 interface ServiceBlock {
   title?: string;
   description?: string;
-  image?: string;
+  image?: MediaRef;
 }
 
 interface CoreServicesPageConfig {
@@ -105,13 +111,14 @@ export default function CoreServicesPage() {
         label={hero.label || ''}
         title={hero.title || ''}
         alt="Core Services Hero"
+        imageSrc={hero.image?.url}
       />
 
       <div className="py-12 md:py-16 lg:py-24 bg-white">
         {services.map((service, index) => {
           if (!service.title || !service.description) return null;
           const isImageLeft = index % 2 === 0;
-          const imageSrc = service.image || `/images/service/${index + 1}.png`;
+          const imageSrc = service.image?.url || `/images/service/${index + 1}.png`;
           return (
             <section key={index} className="bg-white">
               <div className="max-w-layout mx-auto px-4 md:px-6">

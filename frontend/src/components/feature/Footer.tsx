@@ -3,25 +3,28 @@ import { useTranslation } from 'react-i18next';
 import { usePublicContent } from '@/hooks/usePublicContent';
 import type { Locale } from '@/api/publicContent';
 
+interface MediaRef {
+  url?: string;
+  alt?: string;
+}
+
 interface LinkItem {
   label?: string;
   href?: string;
 }
 
-interface LinkSection {
-  title?: string;
-  links?: LinkItem[];
-}
-
 interface FooterConfig {
-  logo?: string;
   address?: string;
   phone?: string;
-  sections?: LinkSection[];
+  links?: LinkItem[];
   copyright?: string;
 }
 
 interface GlobalConfig {
+  branding?: {
+    logo?: MediaRef;
+    companyName?: string;
+  };
   footer?: FooterConfig;
 }
 
@@ -36,8 +39,9 @@ export default function Footer() {
 
   const globalConfig = (config as GlobalConfig) || {};
   const footer = globalConfig.footer || {};
-  const logoSrc = footer.logo || '/images/logo.png';
-  const sections = footer.sections || [];
+  const logoSrc = globalConfig.branding?.logo?.url || '/images/logo.png';
+  const logoAlt = globalConfig.branding?.companyName || 'Blotting Consultancy';
+  const links = footer.links || [];
 
   return (
     <footer className="bg-primary text-white">
@@ -47,7 +51,7 @@ export default function Footer() {
           <div>
             <img
               src={logoSrc}
-              alt="Blotting Consultancy"
+              alt={logoAlt}
               className="h-10 w-auto mb-4"
             />
             <div className="space-y-2 text-sm text-gray-300">
@@ -56,30 +60,21 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Link Sections - 整体靠右 */}
-          {sections.length > 0 && (
-            <div className="flex flex-col sm:flex-row gap-8 md:ml-auto">
-              {sections.map((section, index) => (
-                <div key={index}>
-                  {section.title && (
-                    <h3 className="text-lg font-semibold mb-4">{section.title}</h3>
-                  )}
-                  {section.links && section.links.length > 0 && (
-                    <ul className="space-y-2 text-sm">
-                      {section.links.map((link, linkIndex) => (
-                        <li key={linkIndex}>
-                          <a
-                            href={link.href || '#'}
-                            className="text-gray-300 hover:text-accent transition-colors cursor-pointer"
-                          >
-                            {link.label}
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              ))}
+          {/* Links - 整体靠右 */}
+          {links.length > 0 && (
+            <div className="md:ml-auto">
+              <ul className="flex flex-wrap gap-4 text-sm">
+                {links.map((link, index) => (
+                  <li key={index}>
+                    <a
+                      href={link.href || '#'}
+                      className="text-gray-300 hover:text-accent transition-colors cursor-pointer"
+                    >
+                      {link.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
         </div>

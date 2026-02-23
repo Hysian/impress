@@ -200,7 +200,7 @@ func (vs *ValidationService) validateAboutPage(config model.JSONMap, result *Val
 		for i, block := range blocks {
 			if blockMap, ok := block.(map[string]interface{}); ok {
 				basePath := fmt.Sprintf("blocks[%d]", i)
-				validateLocalizedText(blockMap, basePath+".title", result, true)
+				validateLocalizedText(blockMap, basePath+".title", result, false)
 				validateLocalizedText(blockMap, basePath+".description", result, true)
 				validateMediaRef(blockMap, basePath+".image", result, true)
 			}
@@ -404,9 +404,9 @@ func (vs *ValidationService) validateGlobalPage(config model.JSONMap, result *Va
 	if footer == nil {
 		addRequiredError(result, "footer", "Footer section is required")
 	} else {
-		validateLocalizedText(footer, "footer.address", result, true)
-		validateLocalizedText(footer, "footer.phone", result, true)
-		validateLocalizedText(footer, "footer.copyright", result, true)
+		validateLocalizedText(footer, "footer.address", result, false)
+		validateLocalizedText(footer, "footer.phone", result, false)
+		validateLocalizedText(footer, "footer.copyright", result, false)
 	}
 }
 
@@ -518,12 +518,10 @@ func validateMediaRef(parent map[string]interface{}, fullPath string, result *Va
 		})
 	}
 
-	// Validate alt text as LocalizedText
+	// Validate alt text as LocalizedText (optional — nice-to-have for SEO/a11y)
 	alt := getMapField(field, "alt")
 	if alt != nil {
-		validateLocalizedTextMap(alt, fullPath+".alt", result, required)
-	} else if required {
-		addRequiredError(result, fullPath+".alt", "Alt text is required")
+		validateLocalizedTextMap(alt, fullPath+".alt", result, false)
 	}
 }
 

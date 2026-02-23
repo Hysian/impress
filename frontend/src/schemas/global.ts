@@ -26,8 +26,8 @@ export const globalSchema: PageSchema = {
           required: true,
           editable: true,
           itemFields: [
-            { type: "localizedText", label: "文字", required: true, editable: true },
-            { type: "string", label: "链接", required: true, editable: true },
+            { key: "label", type: "localizedText", label: "文字", required: true, editable: true },
+            { key: "href", type: "string", label: "链接", required: true, editable: true },
           ],
         },
       },
@@ -46,8 +46,8 @@ export const globalSchema: PageSchema = {
           required: false,
           editable: true,
           itemFields: [
-            { type: "localizedText", label: "文字", required: true, editable: true },
-            { type: "string", label: "链接", required: true, editable: true },
+            { key: "label", type: "localizedText", label: "文字", required: true, editable: true },
+            { key: "href", type: "string", label: "链接", required: true, editable: true },
           ],
         },
         copyright: { type: "localizedText", label: "版权信息", required: false, editable: true },

@@ -188,6 +188,13 @@ export function normalizeConfigForLocale(
     if (Array.isArray(value)) {
       result[key] = value.map((item) => {
         if (typeof item === "object" && item !== null && !Array.isArray(item)) {
+          // Check if item itself is a LocalizedText (e.g., array of {zh, en} like descriptions)
+          if ("zh" in item && "en" in item) {
+            const itemKeys = Object.keys(item);
+            if (itemKeys.length === 2) {
+              return getLocalizedText(item as LocalizedText, locale);
+            }
+          }
           return normalizeConfigForLocale(item as Record<string, unknown>, locale);
         }
         return item;

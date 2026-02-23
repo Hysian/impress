@@ -32,6 +32,7 @@ export const aboutSchema: PageSchema = {
       editable: true,
       itemFields: [
         {
+          key: "layout",
           type: "enum",
           label: "布局",
           required: true,
@@ -41,9 +42,9 @@ export const aboutSchema: PageSchema = {
             { label: "图片在右", value: "imageRight" },
           ],
         },
-        { type: "localizedText", label: "标题", required: true, editable: true },
-        { type: "localizedRichText", label: "描述", required: true, editable: true },
-        { type: "mediaRef", label: "图片", required: true, editable: true },
+        { key: "title", type: "localizedText", label: "标题", required: false, editable: true },
+        { key: "description", type: "localizedRichText", label: "描述", required: true, editable: true },
+        { key: "image", type: "mediaRef", label: "图片", required: true, editable: true },
       ],
     },
   },

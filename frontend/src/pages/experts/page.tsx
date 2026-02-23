@@ -5,17 +5,23 @@ import { usePublicContent } from '@/hooks/usePublicContent';
 import type { Locale } from '@/api/publicContent';
 import { PublicLayout } from '@/theme/layouts';
 
+interface MediaRef {
+  url?: string;
+  alt?: string;
+}
+
 interface HeroConfig {
   label?: string;
   title?: string;
+  image?: MediaRef;
 }
 
 interface Expert {
   id: string;
   name?: string;
   title?: string;
-  image?: string;
-  bio?: string;
+  avatar?: MediaRef;
+  bioParagraphs?: string[];
 }
 
 interface ExpertsPageConfig {
@@ -60,7 +66,7 @@ export default function ExpertsPage() {
   }
 
   const activeExpert = experts.find((e) => e.id === activeId) || experts[0];
-  const bioParagraphs = activeExpert?.bio ? activeExpert.bio.split(/\n\n+/).filter(Boolean) : [];
+  const bioParagraphs = activeExpert?.bioParagraphs || [];
 
   return (
     <PublicLayout>
@@ -68,6 +74,7 @@ export default function ExpertsPage() {
         label={hero.label}
         title={hero.title}
         alt="Expert Team Hero"
+        imageSrc={hero.image?.url}
       />
 
       {/* 专家介绍 */}
@@ -90,7 +97,7 @@ export default function ExpertsPage() {
                 <div key={expert.id} className="flex flex-col items-center text-center">
                   <div className="w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden border-2 border-gray-200 flex-shrink-0 mb-3">
                     <img
-                      src={expert.image || `/images/expert/${expert.id}.png`}
+                      src={expert.avatar?.url || `/images/expert/${expert.id}.png`}
                       alt={expert.name || expert.id}
                       className="w-full h-full object-cover object-top"
                     />

@@ -21,8 +21,9 @@ export const casesSchema: PageSchema = {
       required: true,
       editable: true,
       itemFields: [
-        { type: "localizedText", label: "标题", required: true, editable: true },
+        { key: "title", type: "localizedText", label: "标题", required: true, editable: true },
         {
+          key: "items",
           type: "array",
           label: "条目",
           required: true,

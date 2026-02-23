@@ -3,12 +3,20 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { usePublicContent } from "@/hooks/usePublicContent";
 import type { Locale } from "@/api/publicContent";
-import type { HeaderConfig, NavItem } from "./types";
+import type { HeaderConfig } from "./types";
+
+interface MediaRef {
+  url?: string;
+  alt?: string;
+}
 
 interface GlobalConfig {
-  header?: {
-    logo?: string;
-    navigation?: NavItem[];
+  branding?: {
+    logo?: MediaRef;
+    companyName?: string;
+  };
+  nav?: {
+    items?: Array<{ label?: string; href?: string }>;
   };
 }
 
@@ -30,11 +38,12 @@ export default function ThemedHeader({ config }: ThemedHeaderProps) {
   });
 
   const globalConfig = (globalRaw as GlobalConfig) || {};
-  const globalHeader = globalConfig.header || {};
 
-  // Config prop overrides global config
-  const navigation = config?.navigation ?? globalHeader.navigation ?? [];
-  const logoSrc = config?.logo ?? globalHeader.logo ?? "/images/logo.png";
+  // Config prop overrides global config; CMS uses branding.logo.url + nav.items
+  const navItems = globalConfig.nav?.items || [];
+  const navigation = config?.navigation ?? navItems.map((item) => ({ label: item.label, path: item.href }));
+  const logoSrc = config?.logo ?? globalConfig.branding?.logo?.url ?? "/images/logo.png";
+  const logoAlt = globalConfig.branding?.companyName || "Blotting Consultancy";
   const showLanguageToggle = config?.showLanguageToggle ?? true;
   const style = config?.style ?? "sticky";
 
@@ -85,7 +94,7 @@ export default function ThemedHeader({ config }: ThemedHeaderProps) {
               <Link to="/">
                 <img
                   src={logoSrc}
-                  alt="Blotting Consultancy"
+                  alt={logoAlt}
                   className="h-10 w-auto"
                 />
               </Link>

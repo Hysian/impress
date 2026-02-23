@@ -16,23 +16,15 @@ interface ArrayFieldProps {
 /**
  * Returns a default value for an array item based on itemFields.
  * - Single field: return a default for that type
- * - Multiple fields: return an object with keys field_0, field_1, ...
- *   (but for the actual data model, we use the field labels as keys won't work;
- *    instead, we rely on the parent schema's key names from ObjectField/editor)
- *
- * For simplicity, when itemFields has a single field, we produce a bare value.
- * When multiple, we produce an object whose keys match the parent schema structure.
+ * - Multiple fields: return an object keyed by each field's `key` property
  */
 function getDefaultItem(itemFields: FieldDescriptor[]): unknown {
   if (itemFields.length === 1) {
     return getDefaultForType(itemFields[0]);
   }
-  // Multiple fields → object with indexed keys matching the parent object structure
-  // The parent schema defines the keys; here we just create an empty object
-  // that will be populated by the user
   const obj: Record<string, unknown> = {};
   itemFields.forEach((field, idx) => {
-    const key = `field_${idx}`;
+    const key = field.key || `field_${idx}`;
     obj[key] = getDefaultForType(field);
   });
   return obj;
@@ -126,7 +118,7 @@ export default function ArrayField({
     return (
       <div className="space-y-3">
         {itemFields.map((field, fieldIdx) => {
-          const fieldKey = `field_${fieldIdx}`;
+          const fieldKey = field.key || `field_${fieldIdx}`;
           return (
             <FieldRenderer
               key={fieldKey}

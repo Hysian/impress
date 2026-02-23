@@ -3,15 +3,20 @@ import { usePublicContent } from "@/hooks/usePublicContent";
 import type { Locale } from "@/api/publicContent";
 import type { FooterConfig } from "./types";
 
+interface MediaRef {
+  url?: string;
+  alt?: string;
+}
+
 interface GlobalConfig {
+  branding?: {
+    logo?: MediaRef;
+    companyName?: string;
+  };
   footer?: {
-    logo?: string;
     address?: string;
     phone?: string;
-    sections?: Array<{
-      title?: string;
-      links?: Array<{ label?: string; href?: string }>;
-    }>;
+    links?: Array<{ label?: string; href?: string }>;
     copyright?: string;
   };
 }
@@ -34,12 +39,13 @@ export default function ThemedFooter({ config }: ThemedFooterProps) {
   const globalConfig = (globalRaw as GlobalConfig) || {};
   const globalFooter = globalConfig.footer || {};
 
-  // Config prop overrides global config
+  // Config prop overrides global config; CMS uses branding.logo.url + footer.links
   const style = config?.style ?? "full";
-  const logoSrc = config?.logo ?? globalFooter.logo ?? "/images/logo.png";
+  const logoSrc = config?.logo ?? globalConfig.branding?.logo?.url ?? "/images/logo.png";
+  const logoAlt = globalConfig.branding?.companyName || "Blotting Consultancy";
   const address = config?.address ?? globalFooter.address;
   const phone = config?.phone ?? globalFooter.phone;
-  const sections = config?.sections ?? globalFooter.sections ?? [];
+  const links = globalFooter.links ?? [];
   const copyright = config?.copyright ?? globalFooter.copyright ?? "\u00A9 2024 Blotting Consultancy";
 
   if (style === "none") {
@@ -53,7 +59,7 @@ export default function ThemedFooter({ config }: ThemedFooterProps) {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <img
               src={logoSrc}
-              alt="Blotting Consultancy"
+              alt={logoAlt}
               className="h-8 w-auto"
             />
             <p className="text-sm text-gray-300">{copyright}</p>
@@ -72,7 +78,7 @@ export default function ThemedFooter({ config }: ThemedFooterProps) {
           <div>
             <img
               src={logoSrc}
-              alt="Blotting Consultancy"
+              alt={logoAlt}
               className="h-10 w-auto mb-4"
             />
             <div className="space-y-2 text-sm text-gray-300">
@@ -81,32 +87,21 @@ export default function ThemedFooter({ config }: ThemedFooterProps) {
             </div>
           </div>
 
-          {/* Link Sections */}
-          {sections.length > 0 && (
-            <div className="flex flex-col sm:flex-row gap-8 md:ml-auto">
-              {sections.map((section, index) => (
-                <div key={index}>
-                  {section.title && (
-                    <h3 className="text-lg font-semibold mb-4">
-                      {section.title}
-                    </h3>
-                  )}
-                  {section.links && section.links.length > 0 && (
-                    <ul className="space-y-2 text-sm">
-                      {section.links.map((link, linkIndex) => (
-                        <li key={linkIndex}>
-                          <a
-                            href={link.href || "#"}
-                            className="text-gray-300 hover:text-accent transition-colors cursor-pointer"
-                          >
-                            {link.label}
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              ))}
+          {/* Links */}
+          {links.length > 0 && (
+            <div className="md:ml-auto">
+              <ul className="flex flex-wrap gap-4 text-sm">
+                {links.map((link, index) => (
+                  <li key={index}>
+                    <a
+                      href={link.href || "#"}
+                      className="text-gray-300 hover:text-accent transition-colors cursor-pointer"
+                    >
+                      {link.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
         </div>

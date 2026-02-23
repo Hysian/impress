@@ -20,6 +20,8 @@ interface FieldBase {
   label: string;
   required?: boolean;
   editable?: boolean;
+  /** Key used as the object property name when this field is inside an array's itemFields */
+  key?: string;
 }
 
 export interface LocalizedTextField extends FieldBase {

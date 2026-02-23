@@ -4,10 +4,15 @@ import { usePublicContent } from '@/hooks/usePublicContent';
 import type { Locale } from '@/api/publicContent';
 import { PublicLayout } from '@/theme/layouts';
 
+interface MediaRef {
+  url?: string;
+  alt?: string;
+}
+
 interface HeroConfig {
   label?: string;
   title?: string;
-  imageSrc?: string;
+  image?: MediaRef;
 }
 
 interface CaseCategory {
@@ -17,7 +22,7 @@ interface CaseCategory {
 
 interface CasesPageConfig {
   hero?: HeroConfig;
-  categories?: CaseCategory[];
+  cases?: CaseCategory[];
 }
 
 export default function CasesPage() {
@@ -51,7 +56,7 @@ export default function CasesPage() {
 
   const pageConfig = (config as CasesPageConfig) || {};
   const hero = pageConfig.hero || {};
-  const categories = pageConfig.categories || [];
+  const categories = pageConfig.cases || [];
 
   return (
     <PublicLayout>
@@ -59,7 +64,7 @@ export default function CasesPage() {
         label={hero.label}
         title={hero.title}
         alt="Case List Hero"
-        imageSrc={hero.imageSrc || '/images/case-hero-bg.png'}
+        imageSrc={hero.image?.url || '/images/case-hero-bg.png'}
       />
 
       <section className="py-12 md:py-16 lg:py-24 bg-white">

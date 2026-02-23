@@ -20,18 +20,19 @@ interface FormConfig {
   emailPlaceholder?: string;
   messageLabel?: string;
   messagePlaceholder?: string;
-  submit?: string;
+  submitLabel?: string;
 }
 
 interface ContactInfo {
   phone?: string;
+  email?: string;
   address?: string;
 }
 
 interface ContactPageConfig {
   hero?: HeroConfig;
   form?: FormConfig;
-  contact?: ContactInfo;
+  contactInfo?: ContactInfo;
 }
 
 export default function ContactPage() {
@@ -75,7 +76,7 @@ export default function ContactPage() {
   const pageConfig = (config as ContactPageConfig) || {};
   const hero = pageConfig.hero || {};
   const form = pageConfig.form || {};
-  const contact = pageConfig.contact || {};
+  const contact = pageConfig.contactInfo || {};
   const heroBgColor = hero.backgroundColor || '#1E9188';
 
   return (
@@ -116,6 +117,18 @@ export default function ContactPage() {
                   </span>
                   <div>
                     <p className="text-gray-900 font-medium">{contact.phone}</p>
+                  </div>
+                </div>
+              )}
+              {contact.email && (
+                <div className="flex items-start gap-4">
+                  <span className="text-primary mt-1 flex-shrink-0" aria-hidden>
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                  </span>
+                  <div>
+                    <p className="text-gray-900 font-medium">{contact.email}</p>
                   </div>
                 </div>
               )}
@@ -185,7 +198,7 @@ export default function ContactPage() {
                   className="px-8 py-3 rounded-md text-white font-medium transition-colors cursor-pointer"
                   style={{ backgroundColor: heroBgColor }}
                 >
-                  {form.submit || 'Submit'}
+                  {form.submitLabel || 'Submit'}
                 </button>
               </div>
             </form>

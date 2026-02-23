@@ -4,15 +4,21 @@ import PageHero from '@/components/feature/PageHero';
 import { usePublicContent } from '@/hooks/usePublicContent';
 import type { Locale } from '@/api/publicContent';
 
+interface MediaRef {
+  url?: string;
+  alt?: string;
+}
+
 interface HeroConfig {
   label?: string;
   title?: string;
+  image?: MediaRef;
 }
 
 interface AdvantageBlock {
   title?: string;
   description?: string;
-  image?: string;
+  image?: MediaRef;
 }
 
 interface AdvantagesPageConfig {
@@ -105,6 +111,7 @@ export default function AdvantagesPage() {
         label={hero.label || ''}
         title={hero.title || ''}
         alt="Our Advantages Hero"
+        imageSrc={hero.image?.url}
       />
 
       {/* 5 个优势区块整体：仅整体与 hero/footer 保持上下边距 */}
@@ -112,7 +119,7 @@ export default function AdvantagesPage() {
         {blocks.map((block, index) => {
           if (!block.title || !block.description) return null;
           const isImageLeft = index % 2 === 0;
-          const imageSrc = block.image || `/images/advantage/${index + 1}.png`;
+          const imageSrc = block.image?.url || `/images/advantage/${index + 1}.png`;
           return (
             <section
               key={index}
