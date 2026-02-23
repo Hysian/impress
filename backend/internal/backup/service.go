@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"blotting-consultancy/internal/model"
@@ -19,21 +20,31 @@ import (
 
 // Service handles database backup operations
 type Service struct {
-	db        *gorm.DB
-	backupDir string
-	maxKeep   int
+	db         *gorm.DB
+	backupDir  string
+	maxKeep    int
+	uploadDir  string
+	appVersion string
+	importMu   sync.Mutex
 }
 
 // NewService creates a new backup service
-func NewService(db *gorm.DB, backupDir string, maxKeep int) *Service {
+func NewService(db *gorm.DB, backupDir string, maxKeep int, uploadDir, appVersion string) *Service {
 	if maxKeep <= 0 {
 		maxKeep = 10
 	}
 	return &Service{
-		db:        db,
-		backupDir: backupDir,
-		maxKeep:   maxKeep,
+		db:         db,
+		backupDir:  backupDir,
+		maxKeep:    maxKeep,
+		uploadDir:  uploadDir,
+		appVersion: appVersion,
 	}
+}
+
+// BackupDir returns the backup directory path.
+func (s *Service) BackupDir() string {
+	return s.backupDir
 }
 
 // RunBackup creates a database backup, compresses it, and records the result

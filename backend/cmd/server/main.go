@@ -171,7 +171,7 @@ func main() {
 	_ = auditDbWriter // available for future use alongside auditLog
 
 	// Initialize backup service
-	backupSvc := backup.NewService(database.DB, "./backups", 10)
+	backupSvc := backup.NewService(database.DB, "./backups", 10, cfg.UploadDir, Version)
 	log.Info("Audit logger and backup service initialized")
 
 	// Initialize handlers
@@ -364,6 +364,16 @@ func main() {
 		// Backup management
 		adminGroup.GET("/backups", backupHandlerInst.List)
 		adminGroup.POST("/backups/trigger", backupHandlerInst.Trigger)
+
+		// Site export/import (admin only)
+		adminBackup := adminGroup.Group("/backups")
+		adminBackup.Use(middleware.RequireAdmin())
+		{
+			adminBackup.POST("/export", backupHandlerInst.Export)
+			adminBackup.GET("/export/:filename", backupHandlerInst.DownloadExport)
+			adminBackup.POST("/import", backupHandlerInst.Import)
+			adminBackup.POST("/import/validate", backupHandlerInst.ValidateImport)
+		}
 
 		// Audit logs
 		adminGroup.GET("/audit-logs", auditlogHandlerInst.List)

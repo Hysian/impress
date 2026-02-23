@@ -2,6 +2,9 @@ package backup
 
 import (
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -42,4 +45,111 @@ func (h *Handler) Trigger(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, record)
+}
+
+// Export generates a full site export ZIP archive.
+// POST /admin/backups/export
+func (h *Handler) Export(c *gin.Context) {
+	record, err := h.service.RunExport()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "导出失败: " + err.Error()}})
+		return
+	}
+
+	c.JSON(http.StatusCreated, record)
+}
+
+// DownloadExport serves an export ZIP file for download.
+// GET /admin/backups/export/:filename
+func (h *Handler) DownloadExport(c *gin.Context) {
+	filename := c.Param("filename")
+
+	// Path traversal check
+	if strings.Contains(filename, "..") || strings.Contains(filename, "/") || strings.Contains(filename, "\\") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "非法文件名"}})
+		return
+	}
+
+	if !strings.HasPrefix(filename, "site-export-") || !strings.HasSuffix(filename, ".zip") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "非法文件名"}})
+		return
+	}
+
+	filePath := filepath.Join(h.service.BackupDir(), filename)
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "文件不存在"}})
+		return
+	}
+
+	c.Header("Content-Disposition", "attachment; filename="+filename)
+	c.File(filePath)
+}
+
+// Import uploads a ZIP and restores the full site.
+// POST /admin/backups/import
+func (h *Handler) Import(c *gin.Context) {
+	// Limit request body to 500MB
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 500<<20)
+
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "请上传文件: " + err.Error()}})
+		return
+	}
+
+	// Save to temp file
+	tmpFile, err := os.CreateTemp("", "site-import-*.zip")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "创建临时文件失败"}})
+		return
+	}
+	tmpPath := tmpFile.Name()
+	tmpFile.Close()
+	defer os.Remove(tmpPath)
+
+	if err := c.SaveUploadedFile(file, tmpPath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "保存文件失败"}})
+		return
+	}
+
+	if err := h.service.RunImport(tmpPath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "导入失败: " + err.Error()}})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "导入成功，请重新登录"})
+}
+
+// ValidateImport uploads a ZIP and validates its structure without importing.
+// POST /admin/backups/import/validate
+func (h *Handler) ValidateImport(c *gin.Context) {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 500<<20)
+
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "请上传文件: " + err.Error()}})
+		return
+	}
+
+	tmpFile, err := os.CreateTemp("", "site-validate-*.zip")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "创建临时文件失败"}})
+		return
+	}
+	tmpPath := tmpFile.Name()
+	tmpFile.Close()
+	defer os.Remove(tmpPath)
+
+	if err := c.SaveUploadedFile(file, tmpPath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "保存文件失败"}})
+		return
+	}
+
+	result, err := backupService.ValidateExportArchive(tmpPath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "验证失败: " + err.Error()}})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
 }
