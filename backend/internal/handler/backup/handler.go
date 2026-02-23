@@ -1,6 +1,8 @@
 package backup
 
 import (
+	"io"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -97,20 +99,11 @@ func (h *Handler) Import(c *gin.Context) {
 		return
 	}
 
-	// Save to temp file
-	tmpFile, err := os.CreateTemp("", "site-import-*.zip")
+	tmpPath, err := h.saveTempUpload(c, file, "site-import-*.zip")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "创建临时文件失败"}})
 		return
 	}
-	tmpPath := tmpFile.Name()
-	tmpFile.Close()
 	defer os.Remove(tmpPath)
-
-	if err := c.SaveUploadedFile(file, tmpPath); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "保存文件失败"}})
-		return
-	}
 
 	if err := h.service.RunImport(tmpPath); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "导入失败: " + err.Error()}})
@@ -131,17 +124,14 @@ func (h *Handler) ValidateImport(c *gin.Context) {
 		return
 	}
 
-	tmpFile, err := os.CreateTemp("", "site-validate-*.zip")
+	tmpPath, err := h.saveTempUpload(c, file, "site-validate-*.zip")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "创建临时文件失败"}})
 		return
 	}
-	tmpPath := tmpFile.Name()
-	tmpFile.Close()
 	defer os.Remove(tmpPath)
 
 	if err := c.SaveUploadedFile(file, tmpPath); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "保存文件失败"}})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "保存文件失败: " + err.Error()}})
 		return
 	}
 
@@ -152,4 +142,40 @@ func (h *Handler) ValidateImport(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, result)
+}
+
+// saveTempUpload saves a multipart file to a temp file inside the backup directory
+// and returns the path. On error it writes the JSON response and returns err != nil.
+func (h *Handler) saveTempUpload(c *gin.Context, fh *multipart.FileHeader, pattern string) (string, error) {
+	tmpDir := filepath.Join(h.service.BackupDir(), "tmp")
+	if err := os.MkdirAll(tmpDir, 0755); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "创建临时目录失败"}})
+		return "", err
+	}
+
+	tmpFile, err := os.CreateTemp(tmpDir, pattern)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "创建临时文件失败"}})
+		return "", err
+	}
+	tmpPath := tmpFile.Name()
+
+	src, err := fh.Open()
+	if err != nil {
+		tmpFile.Close()
+		os.Remove(tmpPath)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "读取上传文件失败"}})
+		return "", err
+	}
+	defer src.Close()
+
+	if _, err := io.Copy(tmpFile, src); err != nil {
+		tmpFile.Close()
+		os.Remove(tmpPath)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "保存文件失败: " + err.Error()}})
+		return "", err
+	}
+	tmpFile.Close()
+
+	return tmpPath, nil
 }
