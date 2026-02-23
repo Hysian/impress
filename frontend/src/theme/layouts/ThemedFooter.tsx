@@ -1,42 +1,12 @@
-import { useTranslation } from "react-i18next";
-import { usePublicContent } from "@/hooks/usePublicContent";
-import type { Locale } from "@/api/publicContent";
+import { useGlobalConfig } from "@/contexts/GlobalConfigContext";
 import type { FooterConfig } from "./types";
-
-interface MediaRef {
-  url?: string;
-  alt?: string;
-}
-
-interface GlobalConfig {
-  branding?: {
-    logo?: MediaRef;
-    companyName?: string;
-  };
-  footer?: {
-    address?: string;
-    phone?: string;
-    links?: Array<{ label?: string; href?: string }>;
-    copyright?: string;
-  };
-}
 
 interface ThemedFooterProps {
   config?: FooterConfig;
 }
 
 export default function ThemedFooter({ config }: ThemedFooterProps) {
-  const { i18n } = useTranslation("common");
-  const locale = (
-    i18n.language === "zh" || i18n.language.startsWith("zh") ? "zh" : "en"
-  ) as Locale;
-
-  const { config: globalRaw } = usePublicContent("global", {
-    locale,
-    autoNormalize: true,
-  });
-
-  const globalConfig = (globalRaw as GlobalConfig) || {};
+  const { config: globalConfig } = useGlobalConfig();
   const globalFooter = globalConfig.footer || {};
 
   // Config prop overrides global config; CMS uses branding.logo.url + footer.links

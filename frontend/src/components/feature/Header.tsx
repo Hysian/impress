@@ -1,42 +1,20 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { usePublicContent } from '@/hooks/usePublicContent';
-import type { Locale } from '@/api/publicContent';
-
-interface MediaRef {
-  url?: string;
-  alt?: string;
-}
+import { useGlobalConfig } from '@/contexts/GlobalConfigContext';
 
 interface NavItem {
   label?: string;
   href?: string;
 }
 
-interface GlobalConfig {
-  branding?: {
-    logo?: MediaRef;
-    companyName?: string;
-  };
-  nav?: {
-    items?: NavItem[];
-  };
-}
-
 export default function Header() {
   const { i18n } = useTranslation('common');
-  const locale = (i18n.language === 'zh' || i18n.language.startsWith('zh') ? 'zh' : 'en') as Locale;
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const { config } = usePublicContent('global', {
-    locale,
-    autoNormalize: true,
-  });
-
-  const globalConfig = (config as GlobalConfig) || {};
-  const navigation = globalConfig.nav?.items || [];
+  const { config: globalConfig } = useGlobalConfig();
+  const navigation: NavItem[] = globalConfig.nav?.items || [];
   const logoSrc = globalConfig.branding?.logo?.url || '/images/logo.png';
   const logoAlt = globalConfig.branding?.companyName || 'Blotting Consultancy';
 

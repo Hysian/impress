@@ -1,47 +1,17 @@
 
-import { useTranslation } from 'react-i18next';
-import { usePublicContent } from '@/hooks/usePublicContent';
-import type { Locale } from '@/api/publicContent';
-
-interface MediaRef {
-  url?: string;
-  alt?: string;
-}
+import { useGlobalConfig } from '@/contexts/GlobalConfigContext';
 
 interface LinkItem {
   label?: string;
   href?: string;
 }
 
-interface FooterConfig {
-  address?: string;
-  phone?: string;
-  links?: LinkItem[];
-  copyright?: string;
-}
-
-interface GlobalConfig {
-  branding?: {
-    logo?: MediaRef;
-    companyName?: string;
-  };
-  footer?: FooterConfig;
-}
-
 export default function Footer() {
-  const { i18n } = useTranslation('common');
-  const locale = (i18n.language === 'zh' || i18n.language.startsWith('zh') ? 'zh' : 'en') as Locale;
-
-  const { config } = usePublicContent('global', {
-    locale,
-    autoNormalize: true,
-  });
-
-  const globalConfig = (config as GlobalConfig) || {};
+  const { config: globalConfig } = useGlobalConfig();
   const footer = globalConfig.footer || {};
   const logoSrc = globalConfig.branding?.logo?.url || '/images/logo.png';
   const logoAlt = globalConfig.branding?.companyName || 'Blotting Consultancy';
-  const links = footer.links || [];
+  const links: LinkItem[] = footer.links || [];
 
   return (
     <footer className="bg-primary text-white">

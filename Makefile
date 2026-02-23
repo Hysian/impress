@@ -1,0 +1,39 @@
+.PHONY: dev dev-backend dev-frontend build-backend stop help
+
+# ── 一键启动 ──────────────────────────────────────────────
+dev: ## 启动前后端（后端 :8088 + 前端 :3000）
+	@$(MAKE) -j2 dev-backend dev-frontend
+
+dev-backend: ## 启动后端（需先 build-backend）
+	@cd backend && \
+	export PORT=8088 && \
+	export DB_DSN='file:./data/blotting.db?cache=shared&mode=rwc' && \
+	export JWT_SECRET=dev_jwt_secret_change_in_production && \
+	export JWT_REFRESH_SECRET=dev_jwt_refresh_secret_change_in_production && \
+	export ENV=development && \
+	export UPLOAD_DIR=./uploads && \
+	./server
+
+dev-frontend: ## 启动前端 dev server
+	@cd frontend && pnpm dev
+
+# ── 构建 ──────────────────────────────────────────────────
+build-backend: ## 编译后端
+	@cd backend && go build -o server ./cmd/server/
+
+build: build-backend ## 编译前后端
+	@cd frontend && pnpm build
+
+# ── 停止 ──────────────────────────────────────────────────
+stop: ## 停止前后端进程
+	@-lsof -i :8088 -sTCP:LISTEN -t | xargs kill 2>/dev/null; true
+	@-lsof -i :3000 -sTCP:LISTEN -t | xargs kill 2>/dev/null; true
+	@echo "stopped"
+
+# ── 检查 ──────────────────────────────────────────────────
+check: ## 运行 lint + type-check
+	@cd frontend && pnpm lint && pnpm type-check
+
+# ── 帮助 ──────────────────────────────────────────────────
+help: ## 显示所有可用命令
+	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F ':.*?## ' '{printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
