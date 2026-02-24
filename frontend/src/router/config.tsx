@@ -2,15 +2,6 @@
 import { lazy } from 'react';
 import { RouteObject } from 'react-router-dom';
 
-const HomePage = lazy(() => import('../pages/home/page'));
-const AboutPage = lazy(() => import('../pages/about/page'));
-const AdvantagesPage = lazy(() => import('../pages/advantages/page'));
-const ExpertsPage = lazy(() => import('../pages/experts/page'));
-const CasesPage = lazy(() => import('../pages/cases/page'));
-const CoreServicesPage = lazy(() => import('../pages/core-services/page'));
-const ContactPage = lazy(() => import('../pages/contact/page'));
-const NotFound = lazy(() => import('../pages/NotFound'));
-
 // Admin routes
 const AdminLayout = lazy(() => import('../pages/admin/AdminLayout'));
 const AdminLoginPage = lazy(() => import('../pages/admin/login/page'));
@@ -27,6 +18,8 @@ const AdminBackupsPage = lazy(() => import('../pages/admin/backups/page'));
 const AdminPagesPage = lazy(() => import('../pages/admin/pages/page'));
 const AdminPageEditorPage = lazy(() => import('../pages/admin/pages/editor/page'));
 const AdminThemePage = lazy(() => import('../pages/admin/theme/page'));
+const AdminDashboardPage = lazy(() => import('../pages/admin/dashboard/page'));
+const NotFound = lazy(() => import('../pages/NotFound'));
 
 // Public blog routes
 const BlogPage = lazy(() => import('../pages/blog/page'));
@@ -36,35 +29,12 @@ const BlogDetailPage = lazy(() => import('../pages/blog/[slug]/page'));
 const DynamicPage = lazy(() => import('../theme/DynamicPage'));
 const PublicLayout = lazy(() => import('../theme/layouts/PublicLayout'));
 
-const routes: RouteObject[] = [
-  {
-    path: '/',
-    element: <HomePage />,
-  },
-  {
-    path: '/about',
-    element: <AboutPage />,
-  },
-  {
-    path: '/advantages',
-    element: <AdvantagesPage />,
-  },
-  {
-    path: '/experts',
-    element: <ExpertsPage />,
-  },
-  {
-    path: '/cases',
-    element: <CasesPage />,
-  },
-  {
-    path: '/core-services',
-    element: <CoreServicesPage />,
-  },
-  {
-    path: '/contact',
-    element: <ContactPage />,
-  },
+/**
+ * Static routes — blog, admin, dynamic CMS pages, 404.
+ * Theme-driven public page routes (/, /about, etc.) are generated
+ * dynamically from activeTheme.pages in AppRoutes.
+ */
+export const staticRoutes: RouteObject[] = [
   {
     path: '/blog',
     element: <BlogPage />,
@@ -77,6 +47,7 @@ const routes: RouteObject[] = [
     path: '/admin',
     element: <AdminLayout />,
     children: [
+      { index: true, element: <AdminDashboardPage /> },
       {
         path: 'login',
         element: <AdminLoginPage />,
@@ -152,5 +123,3 @@ const routes: RouteObject[] = [
     element: <NotFound />,
   },
 ];
-
-export default routes;

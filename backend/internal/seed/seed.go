@@ -12,15 +12,17 @@ import (
 
 // Seeder handles idempotent seeding of initial data
 type Seeder struct {
-	userRepo    repository.UserRepository
-	contentRepo repository.ContentDocumentRepository
+	userRepo          repository.UserRepository
+	contentRepo       repository.ContentDocumentRepository
+	installedThemeRepo repository.InstalledThemeRepository
 }
 
 // NewSeeder creates a new seeder instance
-func NewSeeder(userRepo repository.UserRepository, contentRepo repository.ContentDocumentRepository) *Seeder {
+func NewSeeder(userRepo repository.UserRepository, contentRepo repository.ContentDocumentRepository, installedThemeRepo repository.InstalledThemeRepository) *Seeder {
 	return &Seeder{
-		userRepo:    userRepo,
-		contentRepo: contentRepo,
+		userRepo:          userRepo,
+		contentRepo:       contentRepo,
+		installedThemeRepo: installedThemeRepo,
 	}
 }
 
@@ -33,6 +35,10 @@ func (s *Seeder) SeedAll(ctx context.Context) error {
 	}
 
 	if err := s.SeedContentDocuments(ctx); err != nil {
+		return err
+	}
+
+	if err := s.SeedInstalledThemes(ctx); err != nil {
 		return err
 	}
 
@@ -116,6 +122,38 @@ func (s *Seeder) SeedContentDocuments(ctx context.Context) error {
 		log.Printf("Created content document for page: %s", pageKey)
 	}
 
+	return nil
+}
+
+// SeedInstalledThemes creates the default corporate-classic theme if it doesn't exist
+func (s *Seeder) SeedInstalledThemes(ctx context.Context) error {
+	existing, err := s.installedThemeRepo.FindByThemeID(ctx, "corporate-classic")
+	if err != nil && !strings.Contains(err.Error(), "not found") {
+		return err
+	}
+
+	if existing != nil {
+		log.Println("InstalledTheme corporate-classic already exists, skipping")
+		return nil
+	}
+
+	theme := &model.InstalledTheme{
+		ThemeID:     "corporate-classic",
+		Name:        "Corporate Classic",
+		NameZh:      "企业经典",
+		Description: "专业企业官网，含首页、关于、优势、服务、案例、专家、联系",
+		Author:      "Blotting Consultancy",
+		Version:     "1.0.0",
+		Source:      "built-in",
+		IsActive:    true,
+		Preview:     "linear-gradient(135deg, #1a5f8f 0%, #8bc34a 100%)",
+	}
+
+	if err := s.installedThemeRepo.Create(ctx, theme); err != nil {
+		return err
+	}
+
+	log.Println("Created InstalledTheme: corporate-classic (active)")
 	return nil
 }
 

@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { http } from "@/api/http";
 import { defaultTokens, type ThemeTokens } from "./tokens";
 import { ThemeContext } from "./ThemeContext";
+import { useThemeManager } from "@/plugins/hooks";
 
 function applyTokens(tokens: ThemeTokens) {
   const root = document.documentElement;
@@ -27,13 +28,19 @@ interface ThemeProviderProps {
 }
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
-  const [tokens, setTokens] = useState<ThemeTokens>(defaultTokens);
+  const { activeTheme } = useThemeManager();
+  const baseTokens = activeTheme?.defaultTokens ?? defaultTokens;
+
+  const [tokens, setTokens] = useState<ThemeTokens>(baseTokens);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Update base tokens when active theme changes
   useEffect(() => {
-    // Apply defaults immediately so CSS variables are available during loading
-    applyTokens(defaultTokens);
+    applyTokens(baseTokens);
+    setTokens(baseTokens);
+  }, [baseTokens]);
 
+  useEffect(() => {
     let cancelled = false;
 
     async function fetchTheme() {
@@ -44,7 +51,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
           applyTokens(response.data.theme);
         }
       } catch {
-        // API unavailable — keep defaults (already applied)
+        // API unavailable — keep base tokens (already applied)
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -57,7 +64,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [baseTokens]);
 
   // Re-apply whenever tokens change from outside (future live-update support)
   useEffect(() => {

@@ -28,7 +28,8 @@ func TestAuthWorkflow(t *testing.T) {
 	contentRepo := repository.NewGormContentDocumentRepository(database.DB)
 
 	// Seed test data
-	seeder := seed.NewSeeder(userRepo, contentRepo)
+	installedThemeRepo := repository.NewGormInstalledThemeRepository(database.DB)
+	seeder := seed.NewSeeder(userRepo, contentRepo, installedThemeRepo)
 	err := seeder.SeedUsers(ctx)
 	require.NoError(t, err)
 
@@ -117,7 +118,8 @@ func TestAuthInvalidCredentials(t *testing.T) {
 	contentRepo := repository.NewGormContentDocumentRepository(database.DB)
 
 	// Seed test data
-	seeder := seed.NewSeeder(userRepo, contentRepo)
+	installedThemeRepo := repository.NewGormInstalledThemeRepository(database.DB)
+	seeder := seed.NewSeeder(userRepo, contentRepo, installedThemeRepo)
 	err := seeder.SeedUsers(ctx)
 	require.NoError(t, err)
 
@@ -186,7 +188,8 @@ func TestRoleBasedAuthorization(t *testing.T) {
 	contentRepo := repository.NewGormContentDocumentRepository(database.DB)
 
 	// Seed test data
-	seeder := seed.NewSeeder(userRepo, contentRepo)
+	installedThemeRepo := repository.NewGormInstalledThemeRepository(database.DB)
+	seeder := seed.NewSeeder(userRepo, contentRepo, installedThemeRepo)
 	err := seeder.SeedAll(ctx)
 	require.NoError(t, err)
 
@@ -281,7 +284,8 @@ func TestConcurrentDraftConflict(t *testing.T) {
 	contentRepo := repository.NewGormContentDocumentRepository(database.DB)
 
 	// Seed test data
-	seeder := seed.NewSeeder(userRepo, contentRepo)
+	installedThemeRepo := repository.NewGormInstalledThemeRepository(database.DB)
+	seeder := seed.NewSeeder(userRepo, contentRepo, installedThemeRepo)
 	err := seeder.SeedAll(ctx)
 	require.NoError(t, err)
 
@@ -373,7 +377,8 @@ func TestValidationGate(t *testing.T) {
 	contentRepo := repository.NewGormContentDocumentRepository(database.DB)
 
 	// Seed test data
-	seeder := seed.NewSeeder(userRepo, contentRepo)
+	installedThemeRepo := repository.NewGormInstalledThemeRepository(database.DB)
+	seeder := seed.NewSeeder(userRepo, contentRepo, installedThemeRepo)
 	err := seeder.SeedAll(ctx)
 	require.NoError(t, err)
 
@@ -482,7 +487,8 @@ func TestDraftLeakagePrevention(t *testing.T) {
 	contentRepo := repository.NewGormContentDocumentRepository(database.DB)
 
 	// Seed test data
-	seeder := seed.NewSeeder(userRepo, contentRepo)
+	installedThemeRepo := repository.NewGormInstalledThemeRepository(database.DB)
+	seeder := seed.NewSeeder(userRepo, contentRepo, installedThemeRepo)
 	err := seeder.SeedAll(ctx)
 	require.NoError(t, err)
 

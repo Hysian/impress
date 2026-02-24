@@ -5,19 +5,22 @@ import i18n from "./i18n";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { GlobalConfigProvider } from "@/contexts/GlobalConfigContext";
 import { ThemeProvider } from "@/theme";
+import { ThemeManagerProvider } from "@/plugins/ThemeManagerContext";
 
 
 function App() {
   return (
     <I18nextProvider i18n={i18n}>
       <BrowserRouter basename={__BASE_PATH__}>
-        <ThemeProvider>
-          <GlobalConfigProvider>
-            <AuthProvider>
-              <AppRoutes />
-            </AuthProvider>
-          </GlobalConfigProvider>
-        </ThemeProvider>
+        <ThemeManagerProvider>
+          <ThemeProvider>
+            <GlobalConfigProvider>
+              <AuthProvider>
+                <AppRoutes />
+              </AuthProvider>
+            </GlobalConfigProvider>
+          </ThemeProvider>
+        </ThemeManagerProvider>
       </BrowserRouter>
     </I18nextProvider>
   );

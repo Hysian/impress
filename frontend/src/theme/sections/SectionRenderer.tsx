@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { SectionData, SectionSettings } from "../types";
-import { sectionRegistry } from "./index";
+import { useSectionRegistry } from "@/plugins/hooks";
 
 interface SectionWrapperProps {
   settings?: SectionSettings;
@@ -38,7 +38,8 @@ interface SectionRendererProps {
 }
 
 export default function SectionRenderer({ section }: SectionRendererProps) {
-  const Component = sectionRegistry[section.type];
+  const { registry } = useSectionRegistry();
+  const Component = registry[section.type];
 
   if (!Component) {
     if (import.meta.env.DEV) {

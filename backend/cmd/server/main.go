@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -27,6 +29,7 @@ import (
 	publicHandler "blotting-consultancy/internal/handler/public"
 	sitemapHandler "blotting-consultancy/internal/handler/sitemap"
 	tagHandler "blotting-consultancy/internal/handler/tag"
+	installedThemeHandler "blotting-consultancy/internal/handler/installed_theme"
 	themeHandler "blotting-consultancy/internal/handler/theme"
 	"blotting-consultancy/internal/middleware"
 	"blotting-consultancy/internal/model"
@@ -116,6 +119,7 @@ func main() {
 		&model.BackupRecord{},
 		&model.AuditEvent{},
 		&model.Page{},
+		&model.InstalledTheme{},
 	); err != nil {
 		log.Error("Failed to run migrations", "error", err)
 		os.Exit(1)
@@ -143,10 +147,11 @@ func main() {
 	articleRepo := repository.NewGormArticleRepository(database.DB)
 	auditEventRepo := repository.NewGormAuditEventRepository(database.DB)
 	pageRepo := repository.NewGormPageRepository(database.DB)
+	installedThemeRepo := repository.NewGormInstalledThemeRepository(database.DB)
 	log.Info("Repositories initialized")
 
 	// Run seed (idempotent)
-	seeder := seed.NewSeeder(userRepo, contentDocRepo)
+	seeder := seed.NewSeeder(userRepo, contentDocRepo, installedThemeRepo)
 	seedCtx, seedCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer seedCancel()
 	if err := seeder.SeedAll(seedCtx); err != nil {
@@ -195,6 +200,7 @@ func main() {
 	sitemapHandlerInst := sitemapHandler.NewHandler(contentDocRepo, cfg.BaseURL)
 	pageHandlerInst := pageHandler.NewHandler(pageRepo)
 	themeHandlerInst := themeHandler.NewHandler(contentDocRepo)
+	installedThemeHandlerInst := installedThemeHandler.NewHandler(installedThemeRepo)
 	log.Info("Handlers initialized")
 
 	// Setup Gin router
@@ -296,6 +302,9 @@ func main() {
 
 		// Public theme route
 		publicGroup.GET("/theme", themeHandlerInst.PublicGet)
+
+		// Public active theme route
+		publicGroup.GET("/active-theme", installedThemeHandlerInst.PublicGetActive)
 	}
 
 	// Auth routes (no auth middleware, but handlers validate credentials)
@@ -387,13 +396,43 @@ func main() {
 		adminGroup.PUT("/pages/:id/publish", pageHandlerInst.AdminPublish)
 		adminGroup.PUT("/pages/:id/unpublish", pageHandlerInst.AdminUnpublish)
 
-		// Theme management
+		// Theme token management (existing)
 		adminGroup.GET("/theme", themeHandlerInst.AdminGet)
 		adminGroup.PUT("/theme", themeHandlerInst.AdminUpdate)
+
+		// Installed theme management
+		adminGroup.GET("/themes", installedThemeHandlerInst.AdminList)
+		adminGroup.GET("/themes/:id", installedThemeHandlerInst.AdminGetByID)
+		adminGroup.POST("/themes", installedThemeHandlerInst.AdminCreate)
+		adminGroup.PUT("/themes/:id", installedThemeHandlerInst.AdminUpdate)
+		adminGroup.DELETE("/themes/:id", installedThemeHandlerInst.AdminDelete)
+		adminGroup.PUT("/themes/:id/activate", installedThemeHandlerInst.AdminActivate)
 	}
 
 	// Serve uploaded files statically
 	router.Static("/uploads", cfg.UploadDir)
+
+	// Serve frontend static assets when FRONTEND_DIR is configured
+	if cfg.FrontendDir != "" {
+		router.Static("/assets", filepath.Join(cfg.FrontendDir, "assets"))
+		router.Static("/images", filepath.Join(cfg.FrontendDir, "images"))
+		router.StaticFile("/favicon.ico", filepath.Join(cfg.FrontendDir, "favicon.ico"))
+
+		// SPA fallback: non-API GET requests return index.html
+		router.NoRoute(func(c *gin.Context) {
+			path := c.Request.URL.Path
+			if c.Request.Method == "GET" &&
+				!strings.HasPrefix(path, "/public/") &&
+				!strings.HasPrefix(path, "/auth/") &&
+				path != "/health" &&
+				path != "/metrics" &&
+				path != "/sitemap.xml" {
+				c.File(filepath.Join(cfg.FrontendDir, "index.html"))
+				return
+			}
+			c.JSON(404, gin.H{"error": "not found"})
+		})
+	}
 
 	log.Info("Router configured with all routes")
 

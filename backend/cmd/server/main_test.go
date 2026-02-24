@@ -45,6 +45,7 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *db.DB) {
 		&model.RefreshToken{},
 		&model.ContentDocument{},
 		&model.ContentVersion{},
+		&model.InstalledTheme{},
 	)
 	require.NoError(t, err)
 
