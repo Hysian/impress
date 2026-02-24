@@ -509,10 +509,7 @@ func validateLocalizedTextZhRequired(parent map[string]interface{}, fullPath str
 	}
 
 	zh := getStringField(field, "zh")
-	en := getStringField(field, "en")
-
 	hasZh := strings.TrimSpace(zh) != ""
-	hasEn := strings.TrimSpace(en) != ""
 
 	if !hasZh {
 		result.TranslationStatus[fullPath] = TranslationStateMissing
@@ -521,8 +518,6 @@ func validateLocalizedTextZhRequired(parent map[string]interface{}, fullPath str
 			Code:    "REQUIRED",
 			Message: "Chinese text is required",
 		})
-	} else if !hasEn {
-		result.TranslationStatus[fullPath] = TranslationStateMissing
 	} else {
 		result.TranslationStatus[fullPath] = TranslationStateDone
 	}
