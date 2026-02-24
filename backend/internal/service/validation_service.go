@@ -332,8 +332,8 @@ func (vs *ValidationService) validateExpertsPage(config model.JSONMap, result *V
 					addRequiredError(result, basePath+".id", "Expert ID is required")
 				}
 
-				validateLocalizedText(expertMap, basePath+".name", result, true)
-				validateLocalizedText(expertMap, basePath+".title", result, true)
+				validateLocalizedTextZhRequired(expertMap, basePath+".name", result)
+				validateLocalizedTextZhRequired(expertMap, basePath+".title", result)
 				validateMediaRef(expertMap, basePath+".avatar", result, true)
 
 				bioParagraphs := getArrayField(expertMap, "bioParagraphs")
@@ -494,6 +494,37 @@ func validateLocalizedTextMap(field map[string]interface{}, fullPath string, res
 		} else {
 			result.TranslationStatus[fullPath] = TranslationStateDone
 		}
+	}
+}
+
+// validateLocalizedTextZhRequired validates a localized text field where Chinese is required but English is optional.
+func validateLocalizedTextZhRequired(parent map[string]interface{}, fullPath string, result *ValidationResult) {
+	parts := strings.Split(fullPath, ".")
+	fieldName := parts[len(parts)-1]
+
+	field := getMapField(parent, fieldName)
+	if field == nil {
+		addRequiredError(result, fullPath, "Field is required")
+		return
+	}
+
+	zh := getStringField(field, "zh")
+	en := getStringField(field, "en")
+
+	hasZh := strings.TrimSpace(zh) != ""
+	hasEn := strings.TrimSpace(en) != ""
+
+	if !hasZh {
+		result.TranslationStatus[fullPath] = TranslationStateMissing
+		result.Errors = append(result.Errors, ValidationError{
+			Path:    fullPath + ".zh",
+			Code:    "REQUIRED",
+			Message: "Chinese text is required",
+		})
+	} else if !hasEn {
+		result.TranslationStatus[fullPath] = TranslationStateMissing
+	} else {
+		result.TranslationStatus[fullPath] = TranslationStateDone
 	}
 }
 
