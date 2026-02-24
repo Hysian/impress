@@ -23,8 +23,8 @@ export const expertsSchema: PageSchema = {
       editable: true,
       itemFields: [
         { key: "id", type: "string", label: "ID", required: true, editable: true },
-        { key: "name", type: "localizedText", label: "姓名", required: true, editable: true },
-        { key: "title", type: "localizedText", label: "职称", required: true, editable: true },
+        { key: "name", type: "localizedText", label: "姓名", required: false, editable: true },
+        { key: "title", type: "localizedText", label: "职称", required: false, editable: true },
         { key: "avatar", type: "mediaRef", label: "头像", required: true, editable: true },
         {
           key: "bioParagraphs",
