@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { http } from "@/api/http";
 import { defaultTokens, type ThemeTokens } from "./tokens";
 import { ThemeContext } from "./ThemeContext";
@@ -29,16 +29,22 @@ interface ThemeProviderProps {
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
   const { activeTheme } = useThemeManager();
+  // Use activeThemeId as a stable dependency instead of the object reference
+  const activeThemeId = activeTheme?.manifest?.id ?? null;
   const baseTokens = activeTheme?.defaultTokens ?? defaultTokens;
 
-  const [tokens, setTokens] = useState<ThemeTokens>(baseTokens);
+  const [tokens, setTokens] = useState<ThemeTokens>(defaultTokens);
   const [isLoading, setIsLoading] = useState(true);
+  const prevThemeIdRef = useRef<string | null>(null);
 
-  // Update base tokens when active theme changes
+  // Update base tokens when active theme actually changes (by id, not reference)
   useEffect(() => {
-    applyTokens(baseTokens);
-    setTokens(baseTokens);
-  }, [baseTokens]);
+    if (prevThemeIdRef.current !== activeThemeId) {
+      prevThemeIdRef.current = activeThemeId;
+      applyTokens(baseTokens);
+      setTokens(baseTokens);
+    }
+  }, [activeThemeId, baseTokens]);
 
   useEffect(() => {
     let cancelled = false;
@@ -52,6 +58,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
         }
       } catch {
         // API unavailable — keep base tokens (already applied)
+        applyTokens(baseTokens);
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -64,7 +71,8 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     return () => {
       cancelled = true;
     };
-  }, [baseTokens]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeThemeId]);
 
   // Re-apply whenever tokens change from outside (future live-update support)
   useEffect(() => {

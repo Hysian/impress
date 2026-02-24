@@ -1,4 +1,5 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useMemo } from "react";
+import type { ComponentType } from "react";
 import type { ThemePageDefinition } from "./types";
 
 const DynamicPage = lazy(() => import("@/theme/DynamicPage"));
@@ -11,30 +12,38 @@ function Loading() {
   );
 }
 
+// Cache lazy components so they are only created once per lazyComponent function
+const lazyCache = new WeakMap<() => Promise<{ default: ComponentType }>, ComponentType>();
+
+function getLazyComponent(loader: () => Promise<{ default: ComponentType }>): ComponentType {
+  let comp = lazyCache.get(loader);
+  if (!comp) {
+    comp = lazy(loader);
+    lazyCache.set(loader, comp);
+  }
+  return comp;
+}
+
 interface ThemePageWrapperProps {
   pageDef: ThemePageDefinition;
 }
 
 export default function ThemePageWrapper({ pageDef }: ThemePageWrapperProps) {
-  if (pageDef.renderMode === "hardcoded") {
-    if (pageDef.lazyComponent) {
-      const LazyComp = lazy(pageDef.lazyComponent);
-      return (
-        <Suspense fallback={<Loading />}>
-          <LazyComp />
-        </Suspense>
-      );
+  const Component = useMemo(() => {
+    if (pageDef.renderMode === "hardcoded") {
+      if (pageDef.lazyComponent) {
+        return getLazyComponent(pageDef.lazyComponent);
+      }
+      if (pageDef.component) {
+        return pageDef.component;
+      }
     }
-    if (pageDef.component) {
-      const Comp = pageDef.component;
-      return <Comp />;
-    }
-  }
+    return DynamicPage;
+  }, [pageDef]);
 
-  // dynamic mode — use DynamicPage for CMS-driven rendering
   return (
     <Suspense fallback={<Loading />}>
-      <DynamicPage />
+      <Component />
     </Suspense>
   );
 }

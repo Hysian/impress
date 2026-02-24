@@ -324,6 +324,20 @@ func main() {
 
 	// Admin routes (require authentication and authorization)
 	adminGroup := router.Group("/admin")
+	// SPA fallback: if FRONTEND_DIR is set and the browser asks for HTML,
+	// serve index.html instead of requiring auth (the SPA handles its own auth).
+	if cfg.FrontendDir != "" {
+		indexPath := filepath.Join(cfg.FrontendDir, "index.html")
+		adminGroup.Use(func(c *gin.Context) {
+			accept := c.GetHeader("Accept")
+			if c.Request.Method == "GET" && strings.Contains(accept, "text/html") {
+				c.File(indexPath)
+				c.Abort()
+				return
+			}
+			c.Next()
+		})
+	}
 	adminGroup.Use(middleware.Auth(cfg.JWTSecret))
 	adminGroup.Use(middleware.RequireAdminOrEditor())
 	{

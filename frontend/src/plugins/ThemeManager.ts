@@ -6,11 +6,21 @@ export class ThemeManager {
   private registry = new Map<string, ThemePlugin>();
   private activeThemeId: string | null = null;
   private listeners = new Set<Listener>();
+  private cachedSnapshot: ThemeManagerSnapshot;
+
+  constructor() {
+    this.cachedSnapshot = {
+      activeThemeId: null,
+      activeTheme: null,
+      themes: [],
+    };
+  }
 
   /** Register a built-in theme */
   registerBuiltIn(theme: ThemePlugin): void {
     this.registry.set(theme.manifest.id, theme);
     theme.onRegister?.();
+    this.invalidateSnapshot();
     this.emit();
   }
 
@@ -18,6 +28,7 @@ export class ThemeManager {
   registerExternal(theme: ThemePlugin): void {
     this.registry.set(theme.manifest.id, theme);
     theme.onRegister?.();
+    this.invalidateSnapshot();
     this.emit();
   }
 
@@ -34,6 +45,7 @@ export class ThemeManager {
 
     this.activeThemeId = themeId;
     theme.onActivate?.();
+    this.invalidateSnapshot();
     this.emit();
     return true;
   }
@@ -90,18 +102,24 @@ export class ThemeManager {
 
   // --- useSyncExternalStore compatibility ---
 
-  subscribe(listener: Listener): () => void {
+  /** Must be arrow function so it's a stable reference for useSyncExternalStore */
+  subscribe = (listener: Listener): (() => void) => {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
-  }
+  };
 
+  /** Returns a cached snapshot; only creates a new object when state actually changes */
   getSnapshot = (): ThemeManagerSnapshot => {
-    return {
+    return this.cachedSnapshot;
+  };
+
+  private invalidateSnapshot(): void {
+    this.cachedSnapshot = {
       activeThemeId: this.activeThemeId,
       activeTheme: this.getActiveTheme(),
-      themes: this.listThemes(),
+      themes: Array.from(this.registry.values()),
     };
-  };
+  }
 
   private emit(): void {
     for (const listener of this.listeners) {

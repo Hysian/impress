@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { themeManager } from "./ThemeManager";
 import { ThemeManagerContext } from "./ThemeManagerContextDef";
 import { corporateClassicTheme } from "./themes/corporate-classic";
@@ -17,8 +17,8 @@ interface ThemeManagerProviderProps {
 
 export function ThemeManagerProvider({ children }: ThemeManagerProviderProps) {
   const snapshot = useSyncExternalStore(
-    (cb) => themeManager.subscribe(cb),
-    () => themeManager.getSnapshot(),
+    themeManager.subscribe,
+    themeManager.getSnapshot,
   );
   const [isLoading, setIsLoading] = useState(true);
 
@@ -64,14 +64,14 @@ export function ThemeManagerProvider({ children }: ThemeManagerProviderProps) {
     return () => { cancelled = true; };
   }, []);
 
+  const contextValue = useMemo(() => ({
+    manager: themeManager,
+    ...snapshot,
+    isLoading,
+  }), [snapshot, isLoading]);
+
   return (
-    <ThemeManagerContext.Provider
-      value={{
-        manager: themeManager,
-        ...snapshot,
-        isLoading,
-      }}
-    >
+    <ThemeManagerContext.Provider value={contextValue}>
       {children}
     </ThemeManagerContext.Provider>
   );
