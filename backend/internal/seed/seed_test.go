@@ -7,6 +7,7 @@ import (
 	"blotting-consultancy/internal/db"
 	"blotting-consultancy/internal/model"
 	"blotting-consultancy/internal/repository"
+	"blotting-consultancy/internal/service"
 	"blotting-consultancy/pkg/auth"
 
 	"github.com/stretchr/testify/assert"
@@ -17,10 +18,8 @@ import (
 
 func TestSeeder_SeedUsers(t *testing.T) {
 	db := setupTestDB(t)
+	seeder := newTestSeeder(db)
 	userRepo := repository.NewGormUserRepository(db)
-	contentRepo := repository.NewGormContentDocumentRepository(db)
-	themeRepo := repository.NewGormInstalledThemeRepository(db)
-	seeder := NewSeeder(userRepo, contentRepo, themeRepo)
 
 	ctx := context.Background()
 
@@ -53,10 +52,8 @@ func TestSeeder_SeedUsers(t *testing.T) {
 
 func TestSeeder_SeedUsers_Idempotent(t *testing.T) {
 	db := setupTestDB(t)
+	seeder := newTestSeeder(db)
 	userRepo := repository.NewGormUserRepository(db)
-	contentRepo := repository.NewGormContentDocumentRepository(db)
-	themeRepo := repository.NewGormInstalledThemeRepository(db)
-	seeder := NewSeeder(userRepo, contentRepo, themeRepo)
 
 	ctx := context.Background()
 
@@ -91,10 +88,8 @@ func TestSeeder_SeedUsers_Idempotent(t *testing.T) {
 
 func TestSeeder_SeedContentDocuments(t *testing.T) {
 	db := setupTestDB(t)
-	userRepo := repository.NewGormUserRepository(db)
+	seeder := newTestSeeder(db)
 	contentRepo := repository.NewGormContentDocumentRepository(db)
-	themeRepo := repository.NewGormInstalledThemeRepository(db)
-	seeder := NewSeeder(userRepo, contentRepo, themeRepo)
 
 	ctx := context.Background()
 
@@ -118,10 +113,8 @@ func TestSeeder_SeedContentDocuments(t *testing.T) {
 
 func TestSeeder_SeedContentDocuments_Idempotent(t *testing.T) {
 	db := setupTestDB(t)
-	userRepo := repository.NewGormUserRepository(db)
+	seeder := newTestSeeder(db)
 	contentRepo := repository.NewGormContentDocumentRepository(db)
-	themeRepo := repository.NewGormInstalledThemeRepository(db)
-	seeder := NewSeeder(userRepo, contentRepo, themeRepo)
 
 	ctx := context.Background()
 
@@ -147,10 +140,9 @@ func TestSeeder_SeedContentDocuments_Idempotent(t *testing.T) {
 
 func TestSeeder_SeedAll(t *testing.T) {
 	db := setupTestDB(t)
+	seeder := newTestSeeder(db)
 	userRepo := repository.NewGormUserRepository(db)
 	contentRepo := repository.NewGormContentDocumentRepository(db)
-	themeRepo := repository.NewGormInstalledThemeRepository(db)
-	seeder := NewSeeder(userRepo, contentRepo, themeRepo)
 
 	ctx := context.Background()
 
@@ -175,10 +167,9 @@ func TestSeeder_SeedAll(t *testing.T) {
 
 func TestSeeder_SeedAll_Idempotent(t *testing.T) {
 	db := setupTestDB(t)
+	seeder := newTestSeeder(db)
 	userRepo := repository.NewGormUserRepository(db)
 	contentRepo := repository.NewGormContentDocumentRepository(db)
-	themeRepo := repository.NewGormInstalledThemeRepository(db)
-	seeder := NewSeeder(userRepo, contentRepo, themeRepo)
 
 	ctx := context.Background()
 
@@ -244,10 +235,8 @@ func TestGetInitialConfig_AllPageKeys(t *testing.T) {
 
 func TestSeeder_SeedContentDocuments_InitialConfigHasBothDraftAndPublished(t *testing.T) {
 	db := setupTestDB(t)
-	userRepo := repository.NewGormUserRepository(db)
+	seeder := newTestSeeder(db)
 	contentRepo := repository.NewGormContentDocumentRepository(db)
-	themeRepo := repository.NewGormInstalledThemeRepository(db)
-	seeder := NewSeeder(userRepo, contentRepo, themeRepo)
 
 	ctx := context.Background()
 
@@ -291,8 +280,18 @@ func setupTestDB(t *testing.T) *gorm.DB {
 		&model.ContentDocument{},
 		&model.ContentVersion{},
 		&model.InstalledTheme{},
+		&model.Page{},
 	)
 	require.NoError(t, err)
 
 	return database.DB
+}
+
+func newTestSeeder(db *gorm.DB) *Seeder {
+	userRepo := repository.NewGormUserRepository(db)
+	contentRepo := repository.NewGormContentDocumentRepository(db)
+	themeRepo := repository.NewGormInstalledThemeRepository(db)
+	pageRepo := repository.NewGormPageRepository(db)
+	themePageSvc := service.NewThemePageService(pageRepo)
+	return NewSeeder(userRepo, contentRepo, themeRepo, themePageSvc)
 }

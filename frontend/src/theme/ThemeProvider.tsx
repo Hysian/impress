@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { http } from "@/api/http";
 import { defaultTokens, type ThemeTokens } from "./tokens";
 import { ThemeContext } from "./ThemeContext";
 import { useThemeManager } from "@/plugins/hooks";
+import { useBootstrap } from "@/contexts/BootstrapContext";
 
 function applyTokens(tokens: ThemeTokens) {
   const root = document.documentElement;
@@ -29,6 +29,7 @@ interface ThemeProviderProps {
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
   const { activeTheme } = useThemeManager();
+  const { data: bootstrapData, isLoading: bootstrapLoading } = useBootstrap();
   // Use activeThemeId as a stable dependency instead of the object reference
   const activeThemeId = activeTheme?.manifest?.id ?? null;
   const baseTokens = activeTheme?.defaultTokens ?? defaultTokens;
@@ -46,33 +47,26 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     }
   }, [activeThemeId, baseTokens]);
 
+  // Apply theme tokens from bootstrap data
   useEffect(() => {
-    let cancelled = false;
+    if (bootstrapLoading) return;
 
-    async function fetchTheme() {
-      try {
-        const response = await http.get<{ theme: ThemeTokens }>("/public/theme");
-        if (!cancelled && response.data?.theme) {
-          setTokens(response.data.theme);
-          applyTokens(response.data.theme);
-        }
-      } catch {
-        // API unavailable — keep base tokens (already applied)
+    const themeTokens = bootstrapData?.themeTokens as unknown as ThemeTokens | undefined;
+    if (themeTokens) {
+      // The bootstrap response returns raw token data; check if it has a valid structure
+      if (themeTokens.colors && themeTokens.fonts && themeTokens.layout) {
+        setTokens(themeTokens);
+        applyTokens(themeTokens);
+      } else {
+        // API returned token data in a different shape — keep base tokens
         applyTokens(baseTokens);
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
       }
+    } else {
+      applyTokens(baseTokens);
     }
-
-    fetchTheme();
-
-    return () => {
-      cancelled = true;
-    };
+    setIsLoading(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeThemeId]);
+  }, [bootstrapData, bootstrapLoading, activeThemeId]);
 
   // Re-apply whenever tokens change from outside (future live-update support)
   useEffect(() => {

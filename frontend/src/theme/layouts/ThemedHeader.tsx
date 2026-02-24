@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useGlobalConfig } from "@/contexts/GlobalConfigContext";
+import { useThemePages } from "@/contexts/ThemePagesContext";
 import type { HeaderConfig } from "./types";
 
 interface ThemedHeaderProps {
@@ -14,10 +15,14 @@ export default function ThemedHeader({ config }: ThemedHeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const { config: globalConfig } = useGlobalConfig();
+  const { headerNavItems } = useThemePages();
 
-  // Config prop overrides global config; CMS uses branding.logo.url + nav.items
-  const navItems = globalConfig.nav?.items || [];
-  const navigation = config?.navigation ?? navItems.map((item) => ({ label: item.label, path: item.href }));
+  // Priority: config prop > theme pages from backend > global config fallback
+  const globalNavItems = globalConfig.nav?.items || [];
+  const navigation = config?.navigation
+    ?? (headerNavItems.length > 0
+      ? headerNavItems.map((item) => ({ label: item.label, path: item.path }))
+      : globalNavItems.map((item) => ({ label: item.label, path: item.href })));
   const logoSrc = config?.logo ?? globalConfig.branding?.logo?.url ?? "/images/logo.png";
   const logoAlt = globalConfig.branding?.companyName || "Blotting Consultancy";
   const showLanguageToggle = config?.showLanguageToggle ?? true;

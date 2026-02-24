@@ -98,13 +98,13 @@ export default function HomePage() {
   return (
     <PublicLayout>
 
-      {/* Hero Section - 移动端高度与文字适配 */}
-      <section className="relative h-[280px] sm:h-[360px] md:h-[440px] lg:h-[560px] flex items-center justify-center">
+      {/* Hero Section - 横向占满屏幕 */}
+      <section className="relative h-[280px] sm:h-[360px] md:h-[440px] lg:h-[560px] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0">
           <img
             src={hero.backgroundImage?.url || '/images/hero-bg.png'}
             alt={hero.backgroundImage?.alt || 'Hero Background'}
-            className="w-full h-full object-cover sm:object-contain object-top"
+            className="w-full h-full object-cover object-center"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/40" />
         </div>

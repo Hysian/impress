@@ -19,6 +19,7 @@ const AdminPagesPage = lazy(() => import('../pages/admin/pages/page'));
 const AdminPageEditorPage = lazy(() => import('../pages/admin/pages/editor/page'));
 const AdminThemePage = lazy(() => import('../pages/admin/theme/page'));
 const AdminDashboardPage = lazy(() => import('../pages/admin/dashboard/page'));
+const AdminFormSubmissionsPage = lazy(() => import('../pages/admin/form-submissions/page'));
 const NotFound = lazy(() => import('../pages/NotFound'));
 
 // Public blog routes
@@ -111,6 +112,10 @@ export const staticRoutes: RouteObject[] = [
       {
         path: 'theme',
         element: <AdminThemePage />,
+      },
+      {
+        path: 'form-submissions',
+        element: <AdminFormSubmissionsPage />,
       },
     ],
   },

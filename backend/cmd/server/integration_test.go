@@ -15,6 +15,7 @@ import (
 	"blotting-consultancy/internal/model"
 	"blotting-consultancy/internal/repository"
 	"blotting-consultancy/internal/seed"
+	"blotting-consultancy/internal/service"
 	"blotting-consultancy/pkg/auth"
 )
 
@@ -29,7 +30,9 @@ func TestAuthWorkflow(t *testing.T) {
 
 	// Seed test data
 	installedThemeRepo := repository.NewGormInstalledThemeRepository(database.DB)
-	seeder := seed.NewSeeder(userRepo, contentRepo, installedThemeRepo)
+	pageRepo := repository.NewGormPageRepository(database.DB)
+	themePageSvc := service.NewThemePageService(pageRepo)
+	seeder := seed.NewSeeder(userRepo, contentRepo, installedThemeRepo, themePageSvc)
 	err := seeder.SeedUsers(ctx)
 	require.NoError(t, err)
 
@@ -119,7 +122,9 @@ func TestAuthInvalidCredentials(t *testing.T) {
 
 	// Seed test data
 	installedThemeRepo := repository.NewGormInstalledThemeRepository(database.DB)
-	seeder := seed.NewSeeder(userRepo, contentRepo, installedThemeRepo)
+	pageRepo := repository.NewGormPageRepository(database.DB)
+	themePageSvc := service.NewThemePageService(pageRepo)
+	seeder := seed.NewSeeder(userRepo, contentRepo, installedThemeRepo, themePageSvc)
 	err := seeder.SeedUsers(ctx)
 	require.NoError(t, err)
 
@@ -189,7 +194,9 @@ func TestRoleBasedAuthorization(t *testing.T) {
 
 	// Seed test data
 	installedThemeRepo := repository.NewGormInstalledThemeRepository(database.DB)
-	seeder := seed.NewSeeder(userRepo, contentRepo, installedThemeRepo)
+	pageRepo := repository.NewGormPageRepository(database.DB)
+	themePageSvc := service.NewThemePageService(pageRepo)
+	seeder := seed.NewSeeder(userRepo, contentRepo, installedThemeRepo, themePageSvc)
 	err := seeder.SeedAll(ctx)
 	require.NoError(t, err)
 
@@ -285,7 +292,9 @@ func TestConcurrentDraftConflict(t *testing.T) {
 
 	// Seed test data
 	installedThemeRepo := repository.NewGormInstalledThemeRepository(database.DB)
-	seeder := seed.NewSeeder(userRepo, contentRepo, installedThemeRepo)
+	pageRepo := repository.NewGormPageRepository(database.DB)
+	themePageSvc := service.NewThemePageService(pageRepo)
+	seeder := seed.NewSeeder(userRepo, contentRepo, installedThemeRepo, themePageSvc)
 	err := seeder.SeedAll(ctx)
 	require.NoError(t, err)
 
@@ -378,7 +387,9 @@ func TestValidationGate(t *testing.T) {
 
 	// Seed test data
 	installedThemeRepo := repository.NewGormInstalledThemeRepository(database.DB)
-	seeder := seed.NewSeeder(userRepo, contentRepo, installedThemeRepo)
+	pageRepo := repository.NewGormPageRepository(database.DB)
+	themePageSvc := service.NewThemePageService(pageRepo)
+	seeder := seed.NewSeeder(userRepo, contentRepo, installedThemeRepo, themePageSvc)
 	err := seeder.SeedAll(ctx)
 	require.NoError(t, err)
 
@@ -488,7 +499,9 @@ func TestDraftLeakagePrevention(t *testing.T) {
 
 	// Seed test data
 	installedThemeRepo := repository.NewGormInstalledThemeRepository(database.DB)
-	seeder := seed.NewSeeder(userRepo, contentRepo, installedThemeRepo)
+	pageRepo := repository.NewGormPageRepository(database.DB)
+	themePageSvc := service.NewThemePageService(pageRepo)
+	seeder := seed.NewSeeder(userRepo, contentRepo, installedThemeRepo, themePageSvc)
 	err := seeder.SeedAll(ctx)
 	require.NoError(t, err)
 

@@ -1,4 +1,5 @@
 import { useGlobalConfig } from "@/contexts/GlobalConfigContext";
+import { useThemePages } from "@/contexts/ThemePagesContext";
 import type { FooterConfig } from "./types";
 
 interface ThemedFooterProps {
@@ -7,6 +8,7 @@ interface ThemedFooterProps {
 
 export default function ThemedFooter({ config }: ThemedFooterProps) {
   const { config: globalConfig } = useGlobalConfig();
+  const { footerNavItems } = useThemePages();
   const globalFooter = globalConfig.footer || {};
 
   // Config prop overrides global config; CMS uses branding.logo.url + footer.links
@@ -15,7 +17,10 @@ export default function ThemedFooter({ config }: ThemedFooterProps) {
   const logoAlt = globalConfig.branding?.companyName || "Blotting Consultancy";
   const address = config?.address ?? globalFooter.address;
   const phone = config?.phone ?? globalFooter.phone;
-  const links = globalFooter.links ?? [];
+  // Use theme page nav items for footer links, fallback to global config
+  const links = footerNavItems.length > 0
+    ? footerNavItems.map((item) => ({ label: item.label, href: item.path }))
+    : (globalFooter.links ?? []);
   const copyright = config?.copyright ?? globalFooter.copyright ?? "\u00A9 2024 Blotting Consultancy";
 
   if (style === "none") {

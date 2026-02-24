@@ -8,16 +8,18 @@ import (
 
 	"blotting-consultancy/internal/model"
 	"blotting-consultancy/internal/repository"
+	"blotting-consultancy/internal/service"
 )
 
 // Handler handles installed-theme-related HTTP requests
 type Handler struct {
-	themeRepo repository.InstalledThemeRepository
+	themeRepo        repository.InstalledThemeRepository
+	themePageService *service.ThemePageService
 }
 
 // NewHandler creates a new installed theme handler
-func NewHandler(themeRepo repository.InstalledThemeRepository) *Handler {
-	return &Handler{themeRepo: themeRepo}
+func NewHandler(themeRepo repository.InstalledThemeRepository, themePageService *service.ThemePageService) *Handler {
+	return &Handler{themeRepo: themeRepo, themePageService: themePageService}
 }
 
 // --- Public endpoints ---
@@ -294,6 +296,18 @@ func (h *Handler) AdminActivate(c *gin.Context) {
 	if err := h.themeRepo.SetActive(c.Request.Context(), target.ThemeID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "激活主题失败"}})
 		return
+	}
+
+	// Seed theme pages for the newly activated theme
+	if h.themePageService != nil {
+		if err := h.themePageService.SeedThemePages(c.Request.Context(), target.ThemeID); err != nil {
+			// Log but don't fail the activation
+			c.JSON(http.StatusOK, gin.H{
+				"theme":   target,
+				"warning": "主题已激活，但页面同步失败: " + err.Error(),
+			})
+			return
+		}
 	}
 
 	// Return updated theme

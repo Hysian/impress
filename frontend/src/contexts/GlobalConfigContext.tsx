@@ -5,6 +5,7 @@ import {
   normalizeConfigForLocale,
   type Locale,
 } from "@/api/publicContent";
+import { useBootstrap } from "@/contexts/BootstrapContext";
 
 interface MediaRef {
   url?: string;
@@ -57,9 +58,26 @@ export function GlobalConfigProvider({ children }: { children: ReactNode }) {
     i18n.language === "zh" || i18n.language.startsWith("zh") ? "zh" : "en"
   ) as Locale;
 
+  const { data: bootstrapData, isLoading: bootstrapLoading } = useBootstrap();
   const [config, setConfig] = useState<GlobalConfig>({});
   const [loading, setLoading] = useState(true);
 
+  // Use bootstrap data for initial load
+  useEffect(() => {
+    if (bootstrapLoading) return;
+
+    const globalData = bootstrapData?.globalConfig;
+    if (globalData?.config) {
+      const normalized = normalizeConfigForLocale(
+        globalData.config as Record<string, unknown>,
+        locale
+      );
+      setConfig(normalized as GlobalConfig);
+    }
+    setLoading(false);
+  }, [bootstrapData, bootstrapLoading, locale]);
+
+  // refetch still uses the direct API for manual refresh scenarios (e.g. admin edits)
   const doFetch = useCallback(async () => {
     try {
       const data = await fetchPublicContent("global", locale);
@@ -71,11 +89,6 @@ export function GlobalConfigProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     }
   }, [locale]);
-
-  useEffect(() => {
-    setLoading(true);
-    doFetch();
-  }, [doFetch]);
 
   return (
     <GlobalConfigContext.Provider value={{ config, loading, locale, refetch: doFetch }}>

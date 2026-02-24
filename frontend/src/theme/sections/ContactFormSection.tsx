@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import type { SectionProps } from "../types";
+import { useFormSubmit } from "@/hooks/useFormSubmit";
 
 export interface ContactFormData {
   title?: string;
@@ -32,13 +34,29 @@ export default function ContactFormSection({ data }: SectionProps<ContactFormDat
     accentColor,
   } = data;
 
+  const { i18n } = useTranslation();
+  const locale = i18n.language?.startsWith("zh") ? "zh" : "en";
+  const { submit: submitFormData, isSubmitting, isSuccess, error: submitError, reset: resetSubmit } = useFormSubmit({
+    formType: "contact",
+    locale,
+  });
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    await submitFormData({ name, email, message });
   };
+
+  useEffect(() => {
+    if (isSuccess) {
+      setName("");
+      setEmail("");
+      setMessage("");
+    }
+  }, [isSuccess]);
 
   const focusRingClass = accentColor
     ? undefined
@@ -114,7 +132,19 @@ export default function ContactFormSection({ data }: SectionProps<ContactFormDat
         </div>
       </div>
 
-      <div className="flex justify-center mt-10 md:mt-14">
+      <div className="flex flex-col items-center mt-10 md:mt-14">
+        {isSuccess && (
+          <div className="w-full max-w-md mb-4 p-4 bg-green-50 border border-green-200 rounded-md text-green-700 text-sm flex items-center justify-between">
+            <span>{locale === "zh" ? "提交成功！我们会尽快与您联系。" : "Submitted successfully! We will contact you soon."}</span>
+            <button onClick={resetSubmit} className="ml-2 text-green-500 hover:text-green-700">&times;</button>
+          </div>
+        )}
+        {submitError && (
+          <div className="w-full max-w-md mb-4 p-4 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm flex items-center justify-between">
+            <span>{submitError}</span>
+            <button onClick={resetSubmit} className="ml-2 text-red-500 hover:text-red-700">&times;</button>
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="w-full max-w-md space-y-4">
           <div>
             <label
@@ -172,10 +202,11 @@ export default function ContactFormSection({ data }: SectionProps<ContactFormDat
           <div className="flex justify-center">
             <button
               type="submit"
-              className="px-8 py-3 rounded-md text-white font-medium transition-colors cursor-pointer bg-primary hover:bg-primary/90"
+              disabled={isSubmitting}
+              className="px-8 py-3 rounded-md text-white font-medium transition-colors cursor-pointer bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
               style={accentColor ? { backgroundColor: accentColor } : undefined}
             >
-              {submit || "Submit"}
+              {isSubmitting ? (locale === "zh" ? "提交中..." : "Submitting...") : (submit || "Submit")}
             </button>
           </div>
         </form>

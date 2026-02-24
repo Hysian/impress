@@ -83,7 +83,7 @@ export default function AdminThemePage() {
     setGalleryMsg("");
     try {
       await activateTheme(theme.id);
-      setGalleryMsg(`已激活主题「${theme.nameZh || theme.name}」，刷新页面后生效`);
+      setGalleryMsg(`已激活主题「${theme.nameZh || theme.name}」，主题页面已同步到页面管理，刷新页面后生效`);
       fetchInstalledThemes();
     } catch {
       setGalleryMsg("激活失败");

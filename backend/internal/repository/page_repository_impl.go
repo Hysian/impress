@@ -98,6 +98,48 @@ func (r *GormPageRepository) List(ctx context.Context, status string, parentID *
 	return pages, nil
 }
 
+// FindByThemeIDAndContentKey finds a page by theme ID and content key (for seed dedup)
+func (r *GormPageRepository) FindByThemeIDAndContentKey(ctx context.Context, themeID string, contentKey string) (*model.Page, error) {
+	var page model.Page
+	err := r.db.WithContext(ctx).
+		Where("theme_id = ? AND content_key = ?", themeID, contentKey).
+		First(&page).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("page not found")
+		}
+		return nil, err
+	}
+	return &page, nil
+}
+
+// ListByThemeID returns pages filtered by themeID with optional status filter
+func (r *GormPageRepository) ListByThemeID(ctx context.Context, themeID string, status string) ([]*model.Page, error) {
+	var pages []*model.Page
+	query := r.db.WithContext(ctx).Where("theme_id = ?", themeID)
+	if status != "" {
+		query = query.Where("status = ?", status)
+	}
+	err := query.Order("sort_order ASC, created_at DESC").Find(&pages).Error
+	if err != nil {
+		return nil, err
+	}
+	return pages, nil
+}
+
+// ListPublishedByThemeID returns published pages for a specific theme
+func (r *GormPageRepository) ListPublishedByThemeID(ctx context.Context, themeID string) ([]*model.Page, error) {
+	var pages []*model.Page
+	err := r.db.WithContext(ctx).
+		Where("theme_id = ? AND status = ?", themeID, model.PageStatusPublished).
+		Order("sort_order ASC, created_at DESC").
+		Find(&pages).Error
+	if err != nil {
+		return nil, err
+	}
+	return pages, nil
+}
+
 // ListPublished returns all published pages ordered by sort_order
 func (r *GormPageRepository) ListPublished(ctx context.Context) ([]*model.Page, error) {
 	var pages []*model.Page

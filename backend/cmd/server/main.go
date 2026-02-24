@@ -29,6 +29,8 @@ import (
 	publicHandler "blotting-consultancy/internal/handler/public"
 	sitemapHandler "blotting-consultancy/internal/handler/sitemap"
 	tagHandler "blotting-consultancy/internal/handler/tag"
+	bootstrapHandler "blotting-consultancy/internal/handler/bootstrap"
+	formSubmissionHandler "blotting-consultancy/internal/handler/form_submission"
 	installedThemeHandler "blotting-consultancy/internal/handler/installed_theme"
 	themeHandler "blotting-consultancy/internal/handler/theme"
 	"blotting-consultancy/internal/middleware"
@@ -120,6 +122,7 @@ func main() {
 		&model.AuditEvent{},
 		&model.Page{},
 		&model.InstalledTheme{},
+		&model.FormSubmission{},
 	); err != nil {
 		log.Error("Failed to run migrations", "error", err)
 		os.Exit(1)
@@ -148,10 +151,14 @@ func main() {
 	auditEventRepo := repository.NewGormAuditEventRepository(database.DB)
 	pageRepo := repository.NewGormPageRepository(database.DB)
 	installedThemeRepo := repository.NewGormInstalledThemeRepository(database.DB)
+	formSubmissionRepo := repository.NewGormFormSubmissionRepository(database.DB)
 	log.Info("Repositories initialized")
 
+	// Initialize theme page service early (needed for seeding)
+	themePageService := service.NewThemePageService(pageRepo)
+
 	// Run seed (idempotent)
-	seeder := seed.NewSeeder(userRepo, contentDocRepo, installedThemeRepo)
+	seeder := seed.NewSeeder(userRepo, contentDocRepo, installedThemeRepo, themePageService)
 	seedCtx, seedCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer seedCancel()
 	if err := seeder.SeedAll(seedCtx); err != nil {
@@ -198,9 +205,11 @@ func main() {
 	backupHandlerInst := backupHandler.NewHandler(backupSvc)
 	auditlogHandlerInst := auditlogHandler.NewHandler(auditEventRepo)
 	sitemapHandlerInst := sitemapHandler.NewHandler(contentDocRepo, cfg.BaseURL)
-	pageHandlerInst := pageHandler.NewHandler(pageRepo)
+	pageHandlerInst := pageHandler.NewHandler(pageRepo, installedThemeRepo)
 	themeHandlerInst := themeHandler.NewHandler(contentDocRepo)
-	installedThemeHandlerInst := installedThemeHandler.NewHandler(installedThemeRepo)
+	installedThemeHandlerInst := installedThemeHandler.NewHandler(installedThemeRepo, themePageService)
+	bootstrapHandlerInst := bootstrapHandler.NewHandler(contentDocRepo, installedThemeRepo, pageRepo)
+	formSubmissionHandlerInst := formSubmissionHandler.NewHandler(formSubmissionRepo)
 	log.Info("Handlers initialized")
 
 	// Setup Gin router
@@ -290,6 +299,7 @@ func main() {
 	publicGroup := router.Group("/public")
 	publicGroup.Use(middleware.PublicRateLimit())
 	{
+		publicGroup.GET("/bootstrap", bootstrapHandlerInst.PublicBootstrap)
 		publicGroup.GET("/content/:pageKey", publicHandlerInst.GetPublicContent)
 
 		// Public article routes
@@ -305,7 +315,13 @@ func main() {
 
 		// Public active theme route
 		publicGroup.GET("/active-theme", installedThemeHandlerInst.PublicGetActive)
+
+		// Public theme pages route
+		publicGroup.GET("/theme-pages", pageHandlerInst.PublicListThemePages)
 	}
+
+	// Form submission (public, with dedicated rate limit)
+	router.POST("/public/form-submissions", middleware.FormSubmitRateLimit(), formSubmissionHandlerInst.HandlePublicSubmit)
 
 	// Auth routes (no auth middleware, but handlers validate credentials)
 	authGroup := router.Group("/auth")
@@ -421,6 +437,14 @@ func main() {
 		adminGroup.PUT("/themes/:id", installedThemeHandlerInst.AdminUpdate)
 		adminGroup.DELETE("/themes/:id", installedThemeHandlerInst.AdminDelete)
 		adminGroup.PUT("/themes/:id/activate", installedThemeHandlerInst.AdminActivate)
+
+		// Form submission management
+		adminGroup.GET("/form-submissions/counts", formSubmissionHandlerInst.HandleAdminCounts)
+		adminGroup.GET("/form-submissions", formSubmissionHandlerInst.HandleAdminList)
+		adminGroup.GET("/form-submissions/:id", formSubmissionHandlerInst.HandleAdminGetByID)
+		adminGroup.PATCH("/form-submissions/:id/status", formSubmissionHandlerInst.HandleAdminUpdateStatus)
+		adminGroup.POST("/form-submissions/bulk-status", formSubmissionHandlerInst.HandleAdminBulkUpdateStatus)
+		adminGroup.DELETE("/form-submissions/:id", formSubmissionHandlerInst.HandleAdminDelete)
 	}
 
 	// Serve uploaded files statically
@@ -433,15 +457,20 @@ func main() {
 		router.StaticFile("/favicon.ico", filepath.Join(cfg.FrontendDir, "favicon.ico"))
 
 		// SPA fallback: non-API GET requests return index.html
+		indexHTML := filepath.Join(cfg.FrontendDir, "index.html")
 		router.NoRoute(func(c *gin.Context) {
 			path := c.Request.URL.Path
 			if c.Request.Method == "GET" &&
 				!strings.HasPrefix(path, "/public/") &&
 				!strings.HasPrefix(path, "/auth/") &&
+				!strings.HasPrefix(path, "/uploads/") &&
 				path != "/health" &&
 				path != "/metrics" &&
 				path != "/sitemap.xml" {
-				c.File(filepath.Join(cfg.FrontendDir, "index.html"))
+				// Use http.ServeFile instead of c.File to ensure 200 status
+				// (Gin NoRoute sets 404 by default and c.File doesn't override it)
+				http.ServeFile(c.Writer, c.Request, indexHTML)
+				c.Abort()
 				return
 			}
 			c.JSON(404, gin.H{"error": "not found"})

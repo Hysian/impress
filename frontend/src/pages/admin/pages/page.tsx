@@ -5,6 +5,7 @@ import {
   deletePage,
   publishPage,
   unpublishPage,
+  updatePage,
   type PageItem,
 } from "@/api/pages";
 
@@ -42,6 +43,22 @@ export default function AdminPagesPage() {
       await publishPage(page.id);
     }
     fetchPages();
+  };
+
+  const handleToggleNav = async (page: PageItem, field: "showInHeader" | "showInFooter") => {
+    const current = page.navConfig?.[field] ?? false;
+    await updatePage(page.id, {
+      ...page,
+      navConfig: { ...page.navConfig, [field]: !current },
+    } as any);
+    fetchPages();
+  };
+
+  const getEditLink = (page: PageItem) => {
+    if (page.isThemePage && page.renderMode === "hardcoded" && page.contentKey) {
+      return `/admin/content/editor/${page.contentKey}`;
+    }
+    return `/admin/pages/edit/${page.id}`;
   };
 
   return (
@@ -83,7 +100,10 @@ export default function AdminPagesPage() {
                   路径
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  模板
+                  类型
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  导航
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   状态
@@ -97,13 +117,48 @@ export default function AdminPagesPage() {
               {pages.map((page) => (
                 <tr key={page.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 text-sm text-gray-900">
-                    {page.title?.zh || page.title?.en || "(无标题)"}
+                    <div>{page.title?.zh || page.title?.en || "(无标题)"}</div>
+                    {page.isThemePage && (
+                      <span className="inline-flex mt-1 px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">
+                        {page.themeId === "corporate-classic" ? "企业经典" : page.themeId}
+                      </span>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500 font-mono">
                     /{page.slug}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
-                    {page.template || "default"}
+                    {page.isThemePage ? (
+                      <span className="text-xs text-purple-600">{page.renderMode === "hardcoded" ? "主题页面" : "动态页面"}</span>
+                    ) : (
+                      <span className="text-xs text-gray-400">{page.template || "default"}</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-sm">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleToggleNav(page, "showInHeader")}
+                        className={`text-xs px-2 py-0.5 rounded border transition-colors ${
+                          page.navConfig?.showInHeader
+                            ? "bg-green-50 border-green-300 text-green-700"
+                            : "bg-gray-50 border-gray-200 text-gray-400"
+                        }`}
+                        title="显示在页眉导航"
+                      >
+                        页眉
+                      </button>
+                      <button
+                        onClick={() => handleToggleNav(page, "showInFooter")}
+                        className={`text-xs px-2 py-0.5 rounded border transition-colors ${
+                          page.navConfig?.showInFooter
+                            ? "bg-green-50 border-green-300 text-green-700"
+                            : "bg-gray-50 border-gray-200 text-gray-400"
+                        }`}
+                        title="显示在页脚导航"
+                      >
+                        页脚
+                      </button>
+                    </div>
                   </td>
                   <td className="px-6 py-4">
                     <span
@@ -124,7 +179,7 @@ export default function AdminPagesPage() {
                       {page.status === "published" ? "下线" : "发布"}
                     </button>
                     <Link
-                      to={`/admin/pages/edit/${page.id}`}
+                      to={getEditLink(page)}
                       className="text-blue-600 hover:text-blue-800"
                     >
                       编辑

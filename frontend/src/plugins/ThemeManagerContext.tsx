@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } fr
 import { themeManager } from "./ThemeManager";
 import { ThemeManagerContext } from "./ThemeManagerContextDef";
 import { corporateClassicTheme } from "./themes/corporate-classic";
-import { http } from "@/api/http";
+import { useBootstrap } from "@/contexts/BootstrapContext";
 import "@/plugins/externals";
 
 export type { ThemeManagerContextValue } from "./ThemeManagerContextDef";
@@ -21,21 +21,24 @@ export function ThemeManagerProvider({ children }: ThemeManagerProviderProps) {
     themeManager.getSnapshot,
   );
   const [isLoading, setIsLoading] = useState(true);
+  const { data: bootstrapData, isLoading: bootstrapLoading } = useBootstrap();
 
   useEffect(() => {
+    if (bootstrapLoading) return;
+
     let cancelled = false;
 
     async function init() {
       try {
-        const res = await http.get<{
-          themeId: string;
-          source?: string;
-          externalUrl?: string;
-        }>("/public/active-theme");
+        const activeTheme = bootstrapData?.activeTheme;
+        const themeId = activeTheme?.themeId;
+        const source = activeTheme?.source;
+        const externalUrl = activeTheme?.externalUrl;
 
-        if (cancelled) return;
-
-        const { themeId, source, externalUrl } = res.data;
+        if (!themeId) {
+          themeManager.activate("corporate-classic");
+          return;
+        }
 
         // If external theme, load bundle first
         if (source === "external" && externalUrl) {
@@ -46,12 +49,13 @@ export function ThemeManagerProvider({ children }: ThemeManagerProviderProps) {
           }
         }
 
+        if (cancelled) return;
+
         // Activate the theme; fallback to corporate-classic
         if (!themeManager.activate(themeId)) {
           themeManager.activate("corporate-classic");
         }
       } catch {
-        // API unavailable — activate default built-in theme
         themeManager.activate("corporate-classic");
       } finally {
         if (!cancelled) {
@@ -62,7 +66,7 @@ export function ThemeManagerProvider({ children }: ThemeManagerProviderProps) {
 
     init();
     return () => { cancelled = true; };
-  }, []);
+  }, [bootstrapData, bootstrapLoading]);
 
   const contextValue = useMemo(() => ({
     manager: themeManager,

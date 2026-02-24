@@ -71,10 +71,7 @@ export async function validateImport(file: File): Promise<ValidationResult> {
   const formData = new FormData();
   formData.append("file", file);
   const response = await http.post<ValidationResult>("/admin/backups/import/validate", formData, {
-    headers: {
-      ...getAuthHeaders(),
-      "Content-Type": "multipart/form-data",
-    },
+    headers: getAuthHeaders(),
   });
   return response.data;
 }
@@ -83,10 +80,7 @@ export async function runImport(file: File): Promise<{ message: string }> {
   const formData = new FormData();
   formData.append("file", file);
   const response = await http.post<{ message: string }>("/admin/backups/import", formData, {
-    headers: {
-      ...getAuthHeaders(),
-      "Content-Type": "multipart/form-data",
-    },
+    headers: getAuthHeaders(),
     timeout: 600000, // 10 min timeout for large imports
   });
   return response.data;

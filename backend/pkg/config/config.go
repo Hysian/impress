@@ -17,6 +17,7 @@ type Config struct {
 	CORSAllowedOrigins []string
 	UploadDir          string
 	BaseURL            string
+	FrontendDir        string
 }
 
 const defaultSQLiteDSN = "file:./data/blotting.db?cache=shared&mode=rwc"
@@ -87,6 +88,9 @@ func Load() (*Config, error) {
 	if cfg.BaseURL == "" {
 		cfg.BaseURL = "https://www.example.com"
 	}
+
+	// FRONTEND_DIR (optional, default empty — disabled when empty)
+	cfg.FrontendDir = os.Getenv("FRONTEND_DIR")
 
 	// Return validation error if required variables are missing
 	if len(missingVars) > 0 {

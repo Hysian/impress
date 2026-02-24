@@ -8,6 +8,11 @@ export interface PageItem {
   template: string;
   status: string;
   sortOrder: number;
+  themeId?: string;
+  contentKey?: string;
+  renderMode?: string;
+  isThemePage?: boolean;
+  navConfig?: { showInHeader?: boolean; showInFooter?: boolean };
   createdAt: string;
   updatedAt: string;
 }
@@ -26,6 +31,11 @@ export interface CreatePageRequest {
   config?: unknown;
   seoTitle?: { zh?: string; en?: string };
   seoDescription?: { zh?: string; en?: string };
+  themeId?: string;
+  contentKey?: string;
+  renderMode?: string;
+  isThemePage?: boolean;
+  navConfig?: { showInHeader?: boolean; showInFooter?: boolean };
 }
 
 export type UpdatePageRequest = Partial<CreatePageRequest>;
@@ -40,11 +50,11 @@ export async function listPages(status?: string, parentId?: number) {
   const params: Record<string, string> = {};
   if (status) params.status = status;
   if (parentId !== undefined) params.parentId = String(parentId);
-  const res = await http.get<{ pages: PageItem[] }>("/admin/pages", {
+  const res = await http.get<{ items: PageItem[] }>("/admin/pages", {
     params,
     ...authHeaders(),
   });
-  return res.data.pages || [];
+  return res.data.items || [];
 }
 
 export async function getPage(id: number) {

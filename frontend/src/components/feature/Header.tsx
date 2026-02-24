@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useGlobalConfig } from '@/contexts/GlobalConfigContext';
+import { useThemePages } from '@/contexts/ThemePagesContext';
 
 interface NavItem {
   label?: string;
@@ -14,7 +15,11 @@ export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const { config: globalConfig } = useGlobalConfig();
-  const navigation: NavItem[] = globalConfig.nav?.items || [];
+  const { headerNavItems } = useThemePages();
+  // Theme pages take priority over global config nav items
+  const navigation: NavItem[] = headerNavItems.length > 0
+    ? headerNavItems.map((item) => ({ label: item.label, href: item.path }))
+    : (globalConfig.nav?.items || []);
   const logoSrc = globalConfig.branding?.logo?.url || '/images/logo.png';
   const logoAlt = globalConfig.branding?.companyName || 'Blotting Consultancy';
 

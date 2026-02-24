@@ -12,12 +12,13 @@ import (
 
 // Handler handles page-related HTTP requests
 type Handler struct {
-	pageRepo repository.PageRepository
+	pageRepo  repository.PageRepository
+	themeRepo repository.InstalledThemeRepository
 }
 
 // NewHandler creates a new page handler
-func NewHandler(pageRepo repository.PageRepository) *Handler {
-	return &Handler{pageRepo: pageRepo}
+func NewHandler(pageRepo repository.PageRepository, themeRepo repository.InstalledThemeRepository) *Handler {
+	return &Handler{pageRepo: pageRepo, themeRepo: themeRepo}
 }
 
 // --- Public endpoints ---
@@ -90,12 +91,63 @@ func (h *Handler) PublicList(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"items": items})
 }
 
+// PublicListThemePages returns published pages for the active theme
+// GET /public/theme-pages
+func (h *Handler) PublicListThemePages(c *gin.Context) {
+	// Find active theme
+	activeTheme, err := h.themeRepo.FindActive(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"items": []interface{}{}})
+		return
+	}
+
+	pages, err := h.pageRepo.ListPublishedByThemeID(c.Request.Context(), activeTheme.ThemeID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "查询页面失败"}})
+		return
+	}
+
+	var items []gin.H
+	for _, p := range pages {
+		items = append(items, gin.H{
+			"id":          p.ID,
+			"slug":        p.Slug,
+			"title":       p.Title,
+			"contentKey":  p.ContentKey,
+			"renderMode":  p.RenderMode,
+			"isThemePage": p.IsThemePage,
+			"themeId":     p.ThemeID,
+			"navConfig":   p.NavConfig,
+			"sortOrder":   p.SortOrder,
+			"status":      p.Status,
+		})
+	}
+
+	if items == nil {
+		items = []gin.H{}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"items": items})
+}
+
 // --- Admin endpoints ---
 
 // AdminList returns all pages with optional filters
-// GET /admin/pages?status=draft&parentId=1
+// GET /admin/pages?status=draft&parentId=1&themeId=corporate-classic
 func (h *Handler) AdminList(c *gin.Context) {
 	status := c.Query("status")
+	themeID := c.Query("themeId")
+
+	// If themeId filter is provided, use theme-specific query
+	if themeID != "" {
+		pages, err := h.pageRepo.ListByThemeID(c.Request.Context(), themeID, status)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "查询页面失败"}})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"items": pages})
+		return
+	}
 
 	var parentID *uint
 	if pid := c.Query("parentId"); pid != "" {
@@ -137,15 +189,20 @@ func (h *Handler) AdminGetByID(c *gin.Context) {
 
 // createUpdateInput is the JSON body for creating/updating pages
 type createUpdateInput struct {
-	Slug           string         `json:"slug"`
-	ParentID       *uint          `json:"parentId"`
-	Title          model.JSONMap  `json:"title"`
-	Template       string         `json:"template"`
-	Config         model.JSONMap  `json:"config"`
-	Status         string         `json:"status"`
-	SortOrder      int            `json:"sortOrder"`
-	SeoTitle       model.JSONMap  `json:"seoTitle"`
-	SeoDescription model.JSONMap  `json:"seoDescription"`
+	Slug           string        `json:"slug"`
+	ParentID       *uint         `json:"parentId"`
+	Title          model.JSONMap `json:"title"`
+	Template       string        `json:"template"`
+	Config         model.JSONMap `json:"config"`
+	Status         string        `json:"status"`
+	SortOrder      int           `json:"sortOrder"`
+	SeoTitle       model.JSONMap `json:"seoTitle"`
+	SeoDescription model.JSONMap `json:"seoDescription"`
+	ThemeID        string        `json:"themeId"`
+	ContentKey     string        `json:"contentKey"`
+	RenderMode     string        `json:"renderMode"`
+	IsThemePage    *bool         `json:"isThemePage"`
+	NavConfig      model.JSONMap `json:"navConfig"`
 }
 
 // AdminCreate creates a new page
@@ -162,6 +219,11 @@ func (h *Handler) AdminCreate(c *gin.Context) {
 		status = model.PageStatusDraft
 	}
 
+	isThemePage := false
+	if input.IsThemePage != nil {
+		isThemePage = *input.IsThemePage
+	}
+
 	page := &model.Page{
 		Slug:           input.Slug,
 		ParentID:       input.ParentID,
@@ -172,6 +234,11 @@ func (h *Handler) AdminCreate(c *gin.Context) {
 		SortOrder:      input.SortOrder,
 		SeoTitle:       input.SeoTitle,
 		SeoDescription: input.SeoDescription,
+		ThemeID:        input.ThemeID,
+		ContentKey:     input.ContentKey,
+		RenderMode:     input.RenderMode,
+		IsThemePage:    isThemePage,
+		NavConfig:      input.NavConfig,
 	}
 
 	if err := h.pageRepo.Create(c.Request.Context(), page); err != nil {
@@ -221,6 +288,23 @@ func (h *Handler) AdminUpdate(c *gin.Context) {
 
 	if input.Status != "" {
 		existing.Status = model.PageStatus(input.Status)
+	}
+
+	// For theme pages, protect contentKey and renderMode
+	if !existing.IsThemePage {
+		if input.ContentKey != "" {
+			existing.ContentKey = input.ContentKey
+		}
+		if input.RenderMode != "" {
+			existing.RenderMode = input.RenderMode
+		}
+		if input.ThemeID != "" {
+			existing.ThemeID = input.ThemeID
+		}
+	}
+
+	if input.NavConfig != nil {
+		existing.NavConfig = input.NavConfig
 	}
 
 	if err := h.pageRepo.Update(c.Request.Context(), existing); err != nil {

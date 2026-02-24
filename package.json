@@ -19,5 +19,8 @@
     "deploy:http": "./scripts/deploy-http.sh",
     "rollback": "./scripts/rollback.sh",
     "migrate:db": "./scripts/migrate-db.sh"
+  },
+  "devDependencies": {
+    "playwright": "^1.58.2"
   }
 }

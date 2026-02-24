@@ -1,0 +1,162 @@
+{
+  "name": "production-deploy",
+  "description": "印迹官网生产环境部署工作流",
+  "version": "1.0.0",
+
+  "env": {
+    "SERVER_CONF": ".prod_server",
+    "LOCAL_BACKEND_DIR": "backend",
+    "LOCAL_FRONTEND_DIR": "frontend",
+    "REMOTE_BASE": "/home/app/impress",
+    "BACKEND_PORT": "8088",
+    "BACKEND_ENV": {
+      "PORT": "8088",
+      "DB_DSN": "file:/home/app/impress/data/blotting.db?cache=shared&mode=rwc",
+      "JWT_SECRET": "dev_jwt_secret_change_in_production",
+      "JWT_REFRESH_SECRET": "dev_jwt_refresh_secret_change_in_production",
+      "ENV": "production",
+      "UPLOAD_DIR": "/home/app/impress/uploads"
+    }
+  },
+
+  "jobs": {
+    "build-backend": {
+      "name": "构建后端",
+      "steps": [
+        {
+          "id": "compile",
+          "name": "编译 Go 二进制",
+          "run": "cd ${LOCAL_BACKEND_DIR} && CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o server ./cmd/server/",
+          "working_dir": ".",
+          "on_failure": "abort"
+        },
+        {
+          "id": "checksum",
+          "name": "计算校验和",
+          "run": "md5sum ${LOCAL_BACKEND_DIR}/server | awk '{print $1}'",
+          "save_output": "BACKEND_MD5"
+        }
+      ]
+    },
+
+    "build-frontend": {
+      "name": "构建前端",
+      "steps": [
+        {
+          "id": "install",
+          "name": "安装依赖",
+          "run": "pnpm install",
+          "working_dir": "."
+        },
+        {
+          "id": "build",
+          "name": "构建生产包",
+          "run": "pnpm build",
+          "working_dir": "."
+        }
+      ]
+    },
+
+    "lint-check": {
+      "name": "代码检查",
+      "steps": [
+        {
+          "id": "lint",
+          "name": "ESLint 检查",
+          "run": "pnpm lint",
+          "on_failure": "abort"
+        },
+        {
+          "id": "typecheck",
+          "name": "TypeScript 类型检查",
+          "run": "pnpm type-check",
+          "on_failure": "abort"
+        }
+      ]
+    },
+
+    "deploy-backend": {
+      "name": "部署后端",
+      "needs": ["build-backend"],
+      "steps": [
+        {
+          "id": "upload",
+          "name": "上传二进制文件",
+          "type": "scp",
+          "local": "${LOCAL_BACKEND_DIR}/server",
+          "remote": "${REMOTE_BASE}/backend/server.new"
+        },
+        {
+          "id": "stop",
+          "name": "停止旧进程",
+          "type": "ssh",
+          "run": "PID=$(ss -tlnp sport = :${BACKEND_PORT} | grep -oP 'pid=\\K\\d+' | head -1); [ -n \"$PID\" ] && kill $PID && sleep 1 || true"
+        },
+        {
+          "id": "swap",
+          "name": "替换二进制",
+          "type": "ssh",
+          "run": "cd ${REMOTE_BASE}/backend && mv server.new server && chmod +x server"
+        },
+        {
+          "id": "start",
+          "name": "启动新进程",
+          "type": "ssh",
+          "run": "cd ${REMOTE_BASE}/backend && nohup env PORT=${BACKEND_ENV.PORT} DB_DSN='${BACKEND_ENV.DB_DSN}' JWT_SECRET='${BACKEND_ENV.JWT_SECRET}' JWT_REFRESH_SECRET='${BACKEND_ENV.JWT_REFRESH_SECRET}' ENV='${BACKEND_ENV.ENV}' UPLOAD_DIR='${BACKEND_ENV.UPLOAD_DIR}' ./server > /tmp/backend.log 2>&1 &",
+          "post_delay": 3
+        },
+        {
+          "id": "verify",
+          "name": "健康检查",
+          "type": "ssh",
+          "run": "curl -sf http://127.0.0.1:${BACKEND_PORT}/public/pages > /dev/null && echo 'OK' || (echo 'FAIL'; exit 1)",
+          "retries": 3,
+          "retry_delay": 2,
+          "on_failure": "warn"
+        },
+        {
+          "id": "verify-checksum",
+          "name": "校验远端二进制",
+          "type": "ssh",
+          "run": "md5sum ${REMOTE_BASE}/backend/server | awk '{print $1}'"
+        }
+      ]
+    },
+
+    "deploy-frontend": {
+      "name": "部署前端",
+      "needs": ["build-frontend"],
+      "steps": [
+        {
+          "id": "sync",
+          "name": "同步前端产物",
+          "type": "rsync",
+          "local": "${LOCAL_FRONTEND_DIR}/out/",
+          "remote": "${REMOTE_BASE}/frontend/",
+          "flags": "-az --delete"
+        },
+        {
+          "id": "reload-nginx",
+          "name": "重载 Nginx",
+          "type": "ssh",
+          "run": "nginx -t && systemctl reload nginx"
+        }
+      ]
+    }
+  },
+
+  "workflows": {
+    "backend-only": {
+      "description": "仅部署后端（代码修改不涉及前端时）",
+      "jobs": ["lint-check", "build-backend", "deploy-backend"]
+    },
+    "frontend-only": {
+      "description": "仅部署前端",
+      "jobs": ["lint-check", "build-frontend", "deploy-frontend"]
+    },
+    "full": {
+      "description": "全量部署（前后端）",
+      "jobs": ["lint-check", "build-backend", "build-frontend", "deploy-backend", "deploy-frontend"]
+    }
+  }
+}

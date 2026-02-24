@@ -28,10 +28,7 @@ export async function uploadMedia(file: File | Blob, filename?: string): Promise
   formData.append("file", file, filename || (file instanceof File ? file.name : "upload.jpg"));
 
   const response = await http.post<MediaItem>("/admin/media/upload", formData, {
-    headers: {
-      ...getAuthHeaders(),
-      "Content-Type": "multipart/form-data",
-    },
+    headers: getAuthHeaders(),
   });
   return response.data;
 }

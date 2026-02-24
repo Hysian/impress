@@ -28,6 +28,11 @@ type Page struct {
 	SortOrder      int            `gorm:"default:0" json:"sortOrder"`
 	SeoTitle       JSONMap        `gorm:"type:jsonb" json:"seoTitle"`
 	SeoDescription JSONMap        `gorm:"type:jsonb" json:"seoDescription"`
+	ThemeID        string         `gorm:"size:100;index" json:"themeId"`
+	ContentKey     string         `gorm:"size:100" json:"contentKey"`
+	RenderMode     string         `gorm:"size:20;default:'dynamic'" json:"renderMode"`
+	IsThemePage    bool           `gorm:"default:false" json:"isThemePage"`
+	NavConfig      JSONMap        `gorm:"type:jsonb" json:"navConfig"`
 	CreatedAt      time.Time      `gorm:"autoCreateTime" json:"createdAt"`
 	UpdatedAt      time.Time      `gorm:"autoUpdateTime" json:"updatedAt"`
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
@@ -46,6 +51,9 @@ func (p *Page) Validate() error {
 	if p.Status != PageStatusDraft && p.Status != PageStatusPublished {
 		return errors.New("status must be draft or published")
 	}
+	if p.RenderMode != "" && p.RenderMode != "hardcoded" && p.RenderMode != "dynamic" {
+		return errors.New("renderMode must be hardcoded or dynamic")
+	}
 	return nil
 }
 
@@ -63,11 +71,17 @@ func (p *Page) BeforeSave(tx *gorm.DB) error {
 	if p.SeoDescription == nil {
 		p.SeoDescription = make(JSONMap)
 	}
+	if p.NavConfig == nil {
+		p.NavConfig = make(JSONMap)
+	}
 	if p.Template == "" {
 		p.Template = "default"
 	}
 	if p.Status == "" {
 		p.Status = PageStatusDraft
+	}
+	if p.RenderMode == "" {
+		p.RenderMode = "dynamic"
 	}
 	return nil
 }

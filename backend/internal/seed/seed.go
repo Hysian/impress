@@ -7,22 +7,25 @@ import (
 
 	"blotting-consultancy/internal/model"
 	"blotting-consultancy/internal/repository"
+	"blotting-consultancy/internal/service"
 	"blotting-consultancy/pkg/auth"
 )
 
 // Seeder handles idempotent seeding of initial data
 type Seeder struct {
-	userRepo          repository.UserRepository
-	contentRepo       repository.ContentDocumentRepository
+	userRepo           repository.UserRepository
+	contentRepo        repository.ContentDocumentRepository
 	installedThemeRepo repository.InstalledThemeRepository
+	themePageService   *service.ThemePageService
 }
 
 // NewSeeder creates a new seeder instance
-func NewSeeder(userRepo repository.UserRepository, contentRepo repository.ContentDocumentRepository, installedThemeRepo repository.InstalledThemeRepository) *Seeder {
+func NewSeeder(userRepo repository.UserRepository, contentRepo repository.ContentDocumentRepository, installedThemeRepo repository.InstalledThemeRepository, themePageService *service.ThemePageService) *Seeder {
 	return &Seeder{
-		userRepo:          userRepo,
-		contentRepo:       contentRepo,
+		userRepo:           userRepo,
+		contentRepo:        contentRepo,
 		installedThemeRepo: installedThemeRepo,
+		themePageService:   themePageService,
 	}
 }
 
@@ -39,6 +42,10 @@ func (s *Seeder) SeedAll(ctx context.Context) error {
 	}
 
 	if err := s.SeedInstalledThemes(ctx); err != nil {
+		return err
+	}
+
+	if err := s.SeedThemePages(ctx); err != nil {
 		return err
 	}
 
@@ -155,6 +162,19 @@ func (s *Seeder) SeedInstalledThemes(ctx context.Context) error {
 
 	log.Println("Created InstalledTheme: corporate-classic (active)")
 	return nil
+}
+
+// SeedThemePages seeds pages for the active theme
+func (s *Seeder) SeedThemePages(ctx context.Context) error {
+	// Find the active theme
+	activeTheme, err := s.installedThemeRepo.FindActive(ctx)
+	if err != nil {
+		log.Println("No active theme found, skipping theme page seeding")
+		return nil
+	}
+
+	log.Printf("Seeding pages for active theme: %s", activeTheme.ThemeID)
+	return s.themePageService.SeedThemePages(ctx, activeTheme.ThemeID)
 }
 
 // getInitialConfig returns an initial empty config structure for a page

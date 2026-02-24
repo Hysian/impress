@@ -119,3 +119,8 @@ func PublicRateLimit() gin.HandlerFunc {
 func LoginRateLimit() gin.HandlerFunc {
 	return RateLimit(5.0/60.0, 5) // ~0.083 rps, burst 5
 }
+
+// FormSubmitRateLimit returns a rate limiter preset for form submission: 3 req/min per IP
+func FormSubmitRateLimit() gin.HandlerFunc {
+	return RateLimit(3.0/60.0, 3) // 0.05 rps, burst 3
+}

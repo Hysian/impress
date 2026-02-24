@@ -23,18 +23,27 @@ export interface ActiveThemeDTO {
   externalUrl?: string;
 }
 
+function authHeaders() {
+  const accessToken = localStorage.getItem("accessToken");
+  return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+}
+
 export async function getActiveTheme(): Promise<ActiveThemeDTO> {
   const res = await http.get<ActiveThemeDTO>("/public/active-theme");
   return res.data;
 }
 
 export async function listInstalledThemes(): Promise<InstalledThemeDTO[]> {
-  const res = await http.get<InstalledThemeDTO[]>("/admin/themes");
+  const res = await http.get<InstalledThemeDTO[]>("/admin/themes", {
+    headers: authHeaders(),
+  });
   return res.data;
 }
 
 export async function getInstalledTheme(id: number): Promise<InstalledThemeDTO> {
-  const res = await http.get<InstalledThemeDTO>(`/admin/themes/${id}`);
+  const res = await http.get<InstalledThemeDTO>(`/admin/themes/${id}`, {
+    headers: authHeaders(),
+  });
   return res.data;
 }
 
@@ -49,19 +58,27 @@ export async function installTheme(data: {
   externalUrl: string;
   preview?: string;
 }): Promise<InstalledThemeDTO> {
-  const res = await http.post<InstalledThemeDTO>("/admin/themes", data);
+  const res = await http.post<InstalledThemeDTO>("/admin/themes", data, {
+    headers: authHeaders(),
+  });
   return res.data;
 }
 
 export async function updateThemeConfig(id: number, config: Record<string, unknown>): Promise<InstalledThemeDTO> {
-  const res = await http.put<InstalledThemeDTO>(`/admin/themes/${id}`, { config });
+  const res = await http.put<InstalledThemeDTO>(`/admin/themes/${id}`, { config }, {
+    headers: authHeaders(),
+  });
   return res.data;
 }
 
 export async function activateTheme(id: number): Promise<void> {
-  await http.put(`/admin/themes/${id}/activate`);
+  await http.put(`/admin/themes/${id}/activate`, null, {
+    headers: authHeaders(),
+  });
 }
 
 export async function uninstallTheme(id: number): Promise<void> {
-  await http.delete(`/admin/themes/${id}`);
+  await http.delete(`/admin/themes/${id}`, {
+    headers: authHeaders(),
+  });
 }
