@@ -38,6 +38,7 @@ import (
 	installedThemeHandler "blotting-consultancy/internal/handler/installed_theme"
 	menuHandler "blotting-consultancy/internal/handler/menu"
 	themeHandler "blotting-consultancy/internal/handler/theme"
+	seoHandler "blotting-consultancy/internal/handler/seo"
 	userHandler "blotting-consultancy/internal/handler/user"
 	"blotting-consultancy/internal/middleware"
 	"blotting-consultancy/internal/model"
@@ -249,6 +250,7 @@ func main() {
 	bootstrapHandlerInst := bootstrapHandler.NewHandler(contentDocRepo, installedThemeRepo, pageRepo)
 	formSubmissionHandlerInst := formSubmissionHandler.NewHandler(formSubmissionRepo)
 	userHandlerInst := userHandler.NewHandler(userRepo)
+	seoHandlerInst := seoHandler.NewHandler()
 	log.Info("Handlers initialized")
 
 	// Setup Gin router
@@ -343,6 +345,9 @@ func main() {
 
 	// Sitemap (no auth required)
 	router.GET("/sitemap.xml", sitemapHandlerInst.GetSitemap)
+
+	// Robots.txt (no auth required)
+	router.GET("/robots.txt", seoHandlerInst.GetRobotsTxt)
 
 	// Public routes (no auth required)
 	publicGroup := router.Group("/public")
@@ -551,6 +556,9 @@ func main() {
 		}
 	}
 
+	// SEO routes (public + admin)
+	seoHandlerInst.RegisterRoutes(publicGroup, adminGroup)
+
 	// Serve uploaded files statically
 	router.Static("/uploads", cfg.UploadDir)
 
@@ -571,7 +579,8 @@ func main() {
 				path != "/health" &&
 				path != "/version" &&
 				path != "/metrics" &&
-				path != "/sitemap.xml" {
+				path != "/sitemap.xml" &&
+				path != "/robots.txt" {
 				if !serveSPAWithMeta(c, seoRenderer) {
 					http.ServeFile(c.Writer, c.Request, indexHTML)
 					c.Abort()
