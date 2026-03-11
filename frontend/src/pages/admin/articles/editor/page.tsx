@@ -21,6 +21,10 @@ import {
 import EditorBubbleMenu from "@/components/admin/editor/EditorBubbleMenu";
 import TableBubbleMenu from "@/components/admin/editor/TableBubbleMenu";
 import EditorFloatingMenu from "@/components/admin/editor/EditorFloatingMenu";
+import EditorModeSwitcher from "@/components/admin/editor/EditorModeSwitcher";
+import MarkdownMode from "@/components/admin/editor/MarkdownMode";
+import TurndownService from "turndown";
+import { marked } from "marked";
 
 export default function ArticleEditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -60,6 +64,10 @@ export default function ArticleEditorPage() {
   const [error, setError] = useState<string | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
+
+  // Editor mode (richtext / markdown)
+  const [editorMode, setEditorMode] = useState<"richtext" | "markdown">("richtext");
+  const [markdownContent, setMarkdownContent] = useState<Record<string, string>>({ zh: "", en: "" });
 
   // Panel states
   const [showBasicInfo, setShowBasicInfo] = useState(false);
@@ -247,6 +255,19 @@ export default function ArticleEditorPage() {
     }
   };
 
+  const handleModeChange = (newMode: "richtext" | "markdown") => {
+    const editor = activeEntry?.editor;
+    if (newMode === "markdown" && editorMode === "richtext") {
+      const turndown = new TurndownService();
+      const html = editor?.getHTML() ?? "";
+      setMarkdownContent((prev) => ({ ...prev, [activeLang]: turndown.turndown(html) }));
+    } else if (newMode === "richtext" && editorMode === "markdown") {
+      const html = marked(markdownContent[activeLang] ?? "") as string;
+      editor?.commands.setContent(html);
+    }
+    setEditorMode(newMode);
+  };
+
   const toggleCategory = (catId: number) => {
     setSelectedCategoryIds((prev) => prev.includes(catId) ? prev.filter((i) => i !== catId) : [...prev, catId]);
   };
@@ -413,10 +434,19 @@ export default function ArticleEditorPage() {
           </div>
         )}
 
-        {/* Row 2: Editor Toolbar (for active language editor) */}
-        {activeEntry?.editor && (
-          <EditorToolbar editor={activeEntry.editor} modals={activeEntry.modals} />
-        )}
+        {/* Row 2: Editor Toolbar (for active language editor) + Mode Switcher */}
+        <div className="flex items-center border-t border-gray-100">
+          {editorMode === "richtext" && activeEntry?.editor ? (
+            <div className="flex-1">
+              <EditorToolbar editor={activeEntry.editor} modals={activeEntry.modals} />
+            </div>
+          ) : (
+            <div className="flex-1" />
+          )}
+          <div className="px-3 py-1.5 flex-shrink-0">
+            <EditorModeSwitcher mode={editorMode} onModeChange={handleModeChange} />
+          </div>
+        </div>
       </div>
 
       {/* ═══ Error Bar ═══ */}
@@ -499,24 +529,33 @@ export default function ArticleEditorPage() {
 
           {/* Editor Content Area — fill remaining space */}
           <div className="flex-1 min-h-0 overflow-y-auto border-t border-gray-300">
-            {enabledLangs.map((lang, idx) => {
-              const entry = langEditors[lang];
-              if (!entry?.editor) return null;
-              return (
-                <div key={lang} className={idx === activeLangIdx ? "h-full" : "hidden"}>
-                  <EditorBubbleMenu editor={entry.editor} />
-                  <TableBubbleMenu editor={entry.editor} />
-                  <EditorFloatingMenu editor={entry.editor} />
-                  <EditorContent editor={entry.editor} className="h-full article-editor-content" />
-                </div>
-              );
-            })}
+            {editorMode === "markdown" ? (
+              <div className="h-full p-4">
+                <MarkdownMode
+                  value={markdownContent[activeLang] ?? ""}
+                  onChange={(val) => setMarkdownContent((prev) => ({ ...prev, [activeLang]: val }))}
+                />
+              </div>
+            ) : (
+              enabledLangs.map((lang, idx) => {
+                const entry = langEditors[lang];
+                if (!entry?.editor) return null;
+                return (
+                  <div key={lang} className={idx === activeLangIdx ? "h-full" : "hidden"}>
+                    <EditorBubbleMenu editor={entry.editor} />
+                    <TableBubbleMenu editor={entry.editor} />
+                    <EditorFloatingMenu editor={entry.editor} />
+                    <EditorContent editor={entry.editor} className="h-full article-editor-content" />
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
 
         {/* Right: Sidebar — Outline + Details */}
         <EditorSidebar
-          editor={activeEntry?.editor ?? null}
+          editor={editorMode === "richtext" ? (activeEntry?.editor ?? null) : null}
           article={sidebarArticle}
         />
       </div>
