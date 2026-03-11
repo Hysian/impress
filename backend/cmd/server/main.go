@@ -252,7 +252,6 @@ func main() {
 	categoryHandlerInst := categoryHandler.NewHandler(categoryRepo, articleRepo)
 	tagHandlerInst := tagHandler.NewHandler(tagRepo, articleRepo)
 	menuHandlerInst := menuHandler.NewHandler(menuRepo)
-	searchService := service.NewSearchService(database.DB, db.IsPostgresDSN(cfg.DBDSN))
 	articleHandlerInst := articleHandler.NewHandler(articleRepo, categoryRepo, tagRepo, searchService)
 	backupHandlerInst := backupHandler.NewHandler(backupSvc)
 	auditlogHandlerInst := auditlogHandler.NewHandler(auditEventRepo)
