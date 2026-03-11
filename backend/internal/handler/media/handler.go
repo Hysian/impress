@@ -3,10 +3,12 @@ package media
 import (
 	"fmt"
 	"image"
+	stdDraw "image/draw"
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -14,7 +16,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chai2010/webp"
 	"github.com/gin-gonic/gin"
+	xdraw "golang.org/x/image/draw"
 
 	"blotting-consultancy/internal/model"
 	"blotting-consultancy/internal/repository"
@@ -136,6 +140,18 @@ func (h *Handler) Upload(c *gin.Context) {
 		os.Remove(destPath)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "保存记录失败"}})
 		return
+	}
+
+	// Async WebP conversion and thumbnail generation for non-WebP image uploads
+	if strings.HasPrefix(mimeType, "image/") && !strings.EqualFold(ext, ".webp") {
+		go func() {
+			if err := generateWebP(destPath); err != nil {
+				log.Printf("[media] generateWebP(%s): %v", destPath, err)
+			}
+			if err := generateThumbnail(destPath, 300); err != nil {
+				log.Printf("[media] generateThumbnail(%s): %v", destPath, err)
+			}
+		}()
 	}
 
 	c.JSON(http.StatusCreated, media)
@@ -337,6 +353,82 @@ func (h *Handler) Rename(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, media)
+}
+
+// generateWebP converts an image file to WebP format, saving it alongside the
+// original with a ".webp" extension.
+func generateWebP(srcPath string) error {
+	f, err := os.Open(srcPath)
+	if err != nil {
+		return fmt.Errorf("open source: %w", err)
+	}
+	defer f.Close()
+
+	img, _, err := image.Decode(f)
+	if err != nil {
+		return fmt.Errorf("decode image: %w", err)
+	}
+
+	destPath := strings.TrimSuffix(srcPath, filepath.Ext(srcPath)) + ".webp"
+	out, err := os.Create(destPath)
+	if err != nil {
+		return fmt.Errorf("create webp file: %w", err)
+	}
+	defer out.Close()
+
+	if err := webp.Encode(out, img, &webp.Options{Lossless: false, Quality: 85}); err != nil {
+		return fmt.Errorf("encode webp: %w", err)
+	}
+	return nil
+}
+
+// generateThumbnail creates a thumbnail of the image at srcPath, resizing it so
+// that its width equals maxWidth (preserving aspect ratio). The thumbnail is
+// saved alongside the original with a "_thumb.webp" suffix.
+func generateThumbnail(srcPath string, maxWidth int) error {
+	f, err := os.Open(srcPath)
+	if err != nil {
+		return fmt.Errorf("open source: %w", err)
+	}
+	defer f.Close()
+
+	img, _, err := image.Decode(f)
+	if err != nil {
+		return fmt.Errorf("decode image: %w", err)
+	}
+
+	bounds := img.Bounds()
+	origW := bounds.Dx()
+	origH := bounds.Dy()
+	if origW == 0 {
+		return fmt.Errorf("image has zero width")
+	}
+
+	// Only downscale; if already smaller than maxWidth keep original dimensions.
+	thumbW := origW
+	thumbH := origH
+	if origW > maxWidth {
+		thumbW = maxWidth
+		thumbH = origH * maxWidth / origW
+	}
+
+	dst := image.NewRGBA(image.Rect(0, 0, thumbW, thumbH))
+	xdraw.BiLinear.Scale(dst, dst.Bounds(), img, bounds, stdDraw.Over, nil)
+
+	ext := filepath.Ext(srcPath)
+	base := strings.TrimSuffix(srcPath, ext)
+	thumbPath := base + "_thumb.webp"
+
+	out, err := os.Create(thumbPath)
+	if err != nil {
+		return fmt.Errorf("create thumb file: %w", err)
+	}
+	defer out.Close()
+
+	if err := webp.Encode(out, dst, &webp.Options{Lossless: false, Quality: 75}); err != nil {
+		return fmt.Errorf("encode thumb webp: %w", err)
+	}
+	return nil
 }
 
 // sanitizeFilename removes non-alphanumeric characters from filename
