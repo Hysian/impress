@@ -7,15 +7,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{.Title}}</title>
     <meta name="description" content="{{.Description}}" />
-    <meta name="keywords" content="{{.Keywords}}" />
-    <link rel="canonical" href="{{.CanonicalURL}}" />
+    {{if .Keywords}}<meta name="keywords" content="{{.Keywords}}" />{{end}}
+    {{if .CanonicalURL}}<link rel="canonical" href="{{.CanonicalURL}}" />{{end}}
 
     <!-- Open Graph -->
     <meta property="og:title" content="{{.OgTitle}}" />
     <meta property="og:description" content="{{.OgDescription}}" />
     <meta property="og:type" content="{{.OgType}}" />
-    <meta property="og:url" content="{{.OgURL}}" />
-    <meta property="og:image" content="{{.OgImage}}" />
+    {{if .OgURL}}<meta property="og:url" content="{{.OgURL}}" />{{end}}
+    {{if .OgImage}}<meta property="og:image" content="{{.OgImage}}" />{{end}}
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="{{.TwitterCard}}" />

@@ -420,17 +420,10 @@ func main() {
 		adminGroup.Use(func(c *gin.Context) {
 			accept := c.GetHeader("Accept")
 			if c.Request.Method == "GET" && strings.Contains(accept, "text/html") {
-				if seoRenderer != nil {
-					meta := seo.DefaultPageMeta()
-					html, err := seoRenderer.Render(meta)
-					if err == nil {
-						c.Data(200, "text/html; charset=utf-8", []byte(html))
-						c.Abort()
-						return
-					}
+				if !serveSPAWithMeta(c, seoRenderer) {
+					c.File(indexPath)
+					c.Abort()
 				}
-				c.File(indexPath)
-				c.Abort()
 				return
 			}
 			c.Next()
@@ -579,19 +572,10 @@ func main() {
 				path != "/version" &&
 				path != "/metrics" &&
 				path != "/sitemap.xml" {
-				if seoRenderer != nil {
-					meta := seo.DefaultPageMeta()
-					// Future: resolve meta from request path via content/article/page lookups
-					html, err := seoRenderer.Render(meta)
-					if err == nil {
-						c.Data(200, "text/html; charset=utf-8", []byte(html))
-						c.Abort()
-						return
-					}
+				if !serveSPAWithMeta(c, seoRenderer) {
+					http.ServeFile(c.Writer, c.Request, indexHTML)
+					c.Abort()
 				}
-				// Fallback to serving static file if renderer fails or is nil
-				http.ServeFile(c.Writer, c.Request, indexHTML)
-				c.Abort()
 				return
 			}
 			c.JSON(404, gin.H{"error": "not found"})
@@ -640,6 +624,23 @@ func main() {
 	}
 
 	log.Info("Server stopped")
+}
+
+// serveSPAWithMeta renders index.html with SEO meta tags. Returns true if served
+// successfully, false if caller should fall back to static file serving.
+func serveSPAWithMeta(c *gin.Context, renderer *seo.Renderer) bool {
+	if renderer == nil {
+		return false
+	}
+	meta := seo.DefaultPageMeta()
+	// Future: resolve meta from request path via content/article/page lookups
+	html, err := renderer.Render(meta)
+	if err != nil {
+		return false
+	}
+	c.Data(200, "text/html; charset=utf-8", []byte(html))
+	c.Abort()
+	return true
 }
 
 // ginLogger returns a Gin middleware that logs requests using the app logger
