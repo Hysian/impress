@@ -18,6 +18,7 @@ import (
 	"gorm.io/gorm/logger"
 
 	"blotting-consultancy/internal/backup"
+	"blotting-consultancy/internal/seo"
 	"blotting-consultancy/internal/db"
 	"blotting-consultancy/internal/db/migrations"
 	analyticsHandler "blotting-consultancy/internal/handler/analytics"
@@ -397,6 +398,19 @@ func main() {
 		}
 	}
 
+	// Initialize SEO renderer when FRONTEND_DIR is configured
+	var seoRenderer *seo.Renderer
+	if cfg.FrontendDir != "" {
+		seoIndexPath := filepath.Join(cfg.FrontendDir, "index.html")
+		var err error
+		seoRenderer, err = seo.NewRenderer(seoIndexPath)
+		if err != nil {
+			log.Error("Failed to create SEO renderer", "error", err)
+			os.Exit(1)
+		}
+		log.Info("SEO renderer initialized")
+	}
+
 	// Admin routes (require authentication and authorization)
 	adminGroup := router.Group("/admin")
 	// SPA fallback: if FRONTEND_DIR is set and the browser asks for HTML,
@@ -406,6 +420,15 @@ func main() {
 		adminGroup.Use(func(c *gin.Context) {
 			accept := c.GetHeader("Accept")
 			if c.Request.Method == "GET" && strings.Contains(accept, "text/html") {
+				if seoRenderer != nil {
+					meta := seo.DefaultPageMeta()
+					html, err := seoRenderer.Render(meta)
+					if err == nil {
+						c.Data(200, "text/html; charset=utf-8", []byte(html))
+						c.Abort()
+						return
+					}
+				}
 				c.File(indexPath)
 				c.Abort()
 				return
@@ -544,7 +567,7 @@ func main() {
 		router.Static("/images", filepath.Join(cfg.FrontendDir, "images"))
 		router.StaticFile("/favicon.ico", filepath.Join(cfg.FrontendDir, "favicon.ico"))
 
-		// SPA fallback: non-API GET requests return index.html
+		// SPA fallback: non-API GET requests return index.html with SEO meta
 		indexHTML := filepath.Join(cfg.FrontendDir, "index.html")
 		router.NoRoute(func(c *gin.Context) {
 			path := c.Request.URL.Path
@@ -556,8 +579,17 @@ func main() {
 				path != "/version" &&
 				path != "/metrics" &&
 				path != "/sitemap.xml" {
-				// Use http.ServeFile instead of c.File to ensure 200 status
-				// (Gin NoRoute sets 404 by default and c.File doesn't override it)
+				if seoRenderer != nil {
+					meta := seo.DefaultPageMeta()
+					// Future: resolve meta from request path via content/article/page lookups
+					html, err := seoRenderer.Render(meta)
+					if err == nil {
+						c.Data(200, "text/html; charset=utf-8", []byte(html))
+						c.Abort()
+						return
+					}
+				}
+				// Fallback to serving static file if renderer fails or is nil
 				http.ServeFile(c.Writer, c.Request, indexHTML)
 				c.Abort()
 				return
