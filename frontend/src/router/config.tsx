@@ -152,6 +152,10 @@ export const staticRoutes: RouteObject[] = [
     ],
   },
   {
+    path: '/search',
+    lazy: () => import('@/pages/search/page').then(m => ({ Component: m.default })),
+  },
+  {
     path: '/p/*',
     element: <PublicLayout><DynamicPage /></PublicLayout>,
   },
