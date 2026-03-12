@@ -1,4 +1,3 @@
-
 import { lazy } from 'react';
 import { RouteObject } from 'react-router-dom';
 
@@ -22,6 +21,13 @@ const AdminDashboardPage = lazy(() => import('../pages/admin/dashboard/page'));
 const AdminFormSubmissionsPage = lazy(() => import('../pages/admin/form-submissions/page'));
 const AdminMenusPage = lazy(() => import('../pages/admin/menus/page'));
 const AdminUsersPage = lazy(() => import('../pages/admin/users/page'));
+const AdminTranslationPage = lazy(() => import('../pages/admin/translation/page'));
+const AdminQAPage = lazy(() => import('../pages/admin/qa/page'));
+const AdminWizardPage = lazy(() => import('../pages/admin/wizard/page'));
+const AdminRolesPage = lazy(() => import('../pages/admin/roles/page'));
+const AdminSitesPage = lazy(() => import('../pages/admin/sites/page'));
+const AdminStoragePage = lazy(() => import('../pages/admin/storage/page'));
+const AdminCommentsPage = lazy(() => import('../pages/admin/comments/page'));
 const NotFound = lazy(() => import('../pages/NotFound'));
 
 // Public blog routes
@@ -148,6 +154,34 @@ export const staticRoutes: RouteObject[] = [
       {
         path: 'users',
         element: <AdminUsersPage />,
+      },
+      {
+        path: 'translation',
+        element: <AdminTranslationPage />,
+      },
+      {
+        path: 'qa',
+        element: <AdminQAPage />,
+      },
+      {
+        path: 'wizard',
+        element: <AdminWizardPage />,
+      },
+      {
+        path: 'comments',
+        element: <AdminCommentsPage />,
+      },
+      {
+        path: 'roles',
+        element: <AdminRolesPage />,
+      },
+      {
+        path: 'sites',
+        element: <AdminSitesPage />,
+      },
+      {
+        path: 'storage',
+        element: <AdminStoragePage />,
       },
     ],
   },

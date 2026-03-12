@@ -3,6 +3,7 @@ import ThemedHeader from "./ThemedHeader";
 import ThemedFooter from "./ThemedFooter";
 import Sidebar from "./Sidebar";
 import type { LayoutConfig } from "./types";
+import QAWidget from "@/components/feature/QAWidget";
 
 interface PublicLayoutProps {
   layout?: LayoutConfig;
@@ -34,6 +35,9 @@ export default function PublicLayout({ layout, children }: PublicLayoutProps) {
 
       {/* Footer -- unless layout is "blank" */}
       {layoutType !== "blank" && <ThemedFooter config={layout?.footer} />}
+
+      {/* Floating Q&A Widget */}
+      <QAWidget />
     </div>
   );
 }
