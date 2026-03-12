@@ -39,7 +39,6 @@ The two systems are bridged via `isThemePage` + `renderMode="hardcoded"` flags o
 - Custom component code in themes (deferred to future plugin-based phase)
 - Real-time collaborative editing
 - Page-level access control (handled separately by RBAC system)
-- Changing the existing section component implementations (hero, card-grid, etc.)
 
 ---
 
@@ -67,72 +66,76 @@ The two systems are bridged via `isThemePage` + `renderMode="hardcoded"` flags o
 
 #### Database: `unified_pages` table
 
-Replaces both `pages` and `content_documents` tables.
+Replaces both `pages` and `content_documents` tables. Defined as GORM model (dialect-agnostic for SQLite and PostgreSQL):
 
-```sql
-CREATE TABLE unified_pages (
-    id              SERIAL PRIMARY KEY,
-    slug            VARCHAR(200) NOT NULL UNIQUE,
+```go
+// UnifiedPage replaces both Page and ContentDocument.
+type UnifiedPage struct {
+    ID   uint   `gorm:"primaryKey" json:"id"`
+    Slug string `gorm:"uniqueIndex;size:200;not null" json:"slug"`
 
-    -- Bilingual metadata
-    zh_title        VARCHAR(500) NOT NULL DEFAULT '',
-    en_title        VARCHAR(500) NOT NULL DEFAULT '',
-    zh_description  TEXT NOT NULL DEFAULT '',
-    en_description  TEXT NOT NULL DEFAULT '',
+    // Bilingual metadata
+    ZhTitle       string `gorm:"size:500;not null;default:''" json:"zhTitle"`
+    EnTitle       string `gorm:"size:500;not null;default:''" json:"enTitle"`
+    ZhDescription string `gorm:"type:text;not null;default:''" json:"zhDescription"`
+    EnDescription string `gorm:"type:text;not null;default:''" json:"enDescription"`
 
-    -- Page mode
-    mode            VARCHAR(20) NOT NULL DEFAULT 'composable',  -- 'template' | 'composable'
-    template_id     VARCHAR(100),                                -- references a PageTemplate key (NULL for composable)
+    // Page mode
+    Mode       string `gorm:"size:20;not null;default:'composable'" json:"mode"` // "template" | "composable"
+    TemplateID *uint  `gorm:"index" json:"templateId"`                           // FK to page_templates (NULL for composable)
 
-    -- Dual-version content
-    draft_config       JSONB NOT NULL DEFAULT '{}',
-    draft_version      INT NOT NULL DEFAULT 1,
-    published_config   JSONB,
-    published_version  INT NOT NULL DEFAULT 0,
+    // Dual-version content
+    DraftConfig      JSONMap `gorm:"type:text" json:"draftConfig"`
+    DraftVersion     int     `gorm:"not null;default:1" json:"draftVersion"`
+    PublishedConfig  JSONMap `gorm:"type:text" json:"publishedConfig"`
+    PublishedVersion int     `gorm:"not null;default:0" json:"publishedVersion"`
 
-    -- Status & workflow
-    status             VARCHAR(20) NOT NULL DEFAULT 'draft',  -- 'draft' | 'published' | 'scheduled'
-    scheduled_at       TIMESTAMP,
+    // Status & workflow
+    Status      string     `gorm:"size:20;not null;default:'draft'" json:"status"` // "draft" | "published" | "scheduled"
+    ScheduledAt *time.Time `json:"scheduledAt"`
 
-    -- Translation tracking
-    translation_status JSONB NOT NULL DEFAULT '{}',  -- per-field translation state
+    // Translation tracking
+    TranslationStatus JSONMap `gorm:"type:text" json:"translationStatus"`
 
-    -- SEO
-    zh_meta_title       VARCHAR(200) NOT NULL DEFAULT '',
-    en_meta_title       VARCHAR(200) NOT NULL DEFAULT '',
-    zh_meta_description VARCHAR(500) NOT NULL DEFAULT '',
-    en_meta_description VARCHAR(500) NOT NULL DEFAULT '',
-    zh_meta_keywords    VARCHAR(500) NOT NULL DEFAULT '',
-    en_meta_keywords    VARCHAR(500) NOT NULL DEFAULT '',
+    // SEO
+    ZhMetaTitle       string `gorm:"size:200;not null;default:''" json:"zhMetaTitle"`
+    EnMetaTitle       string `gorm:"size:200;not null;default:''" json:"enMetaTitle"`
+    ZhMetaDescription string `gorm:"size:500;not null;default:''" json:"zhMetaDescription"`
+    EnMetaDescription string `gorm:"size:500;not null;default:''" json:"enMetaDescription"`
+    ZhMetaKeywords    string `gorm:"size:500;not null;default:''" json:"zhMetaKeywords"`
+    EnMetaKeywords    string `gorm:"size:500;not null;default:''" json:"enMetaKeywords"`
 
-    -- Navigation & ordering
-    sort_order     INT NOT NULL DEFAULT 0,
-    show_in_nav    BOOLEAN NOT NULL DEFAULT false,
-    parent_id      INT REFERENCES unified_pages(id),
+    // Navigation & ordering
+    SortOrder int  `gorm:"not null;default:0" json:"sortOrder"`
+    ShowInNav bool `gorm:"not null;default:false" json:"showInNav"`
+    ParentID  *uint `gorm:"index" json:"parentId"`
 
-    -- Timestamps
-    created_at     TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at     TIMESTAMP NOT NULL DEFAULT NOW(),
-    published_at   TIMESTAMP
-);
+    // Timestamps
+    CreatedAt   time.Time  `gorm:"autoCreateTime" json:"createdAt"`
+    UpdatedAt   time.Time  `gorm:"autoUpdateTime" json:"updatedAt"`
+    PublishedAt *time.Time `json:"publishedAt"`
+}
 ```
+
+> **Note on SQLite/PostgreSQL compatibility:** The model uses `gorm:"type:text"` for JSON columns. GORM's JSONMap scanner handles serialization in both dialects. Raw SQL in goose migrations must provide separate up scripts per dialect or use TEXT type universally. This follows the existing pattern in `backend/internal/model/page.go` which uses `JSONMap` with `gorm:"type:jsonb"` — GORM maps this to TEXT on SQLite automatically.
 
 #### Database: `page_versions` table
 
 Replaces `content_versions`. Append-only history for all pages.
 
-```sql
-CREATE TABLE page_versions (
-    id          SERIAL PRIMARY KEY,
-    page_id     INT NOT NULL REFERENCES unified_pages(id) ON DELETE CASCADE,
-    version     INT NOT NULL,
-    config      JSONB NOT NULL,
-    published_by INT REFERENCES users(id),
-    created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
-
-    UNIQUE(page_id, version)
-);
+```go
+// PageVersion stores a snapshot of a page config at publish time.
+type PageVersion struct {
+    ID        uint    `gorm:"primaryKey" json:"id"`
+    PageID    uint    `gorm:"not null;index;uniqueIndex:idx_page_version" json:"pageId"`
+    Version   int     `gorm:"not null;uniqueIndex:idx_page_version" json:"version"`
+    Config    JSONMap `gorm:"type:text;not null" json:"config"`
+    CreatedBy uint    `gorm:"not null" json:"createdBy"` // user who published this version
+    CreatedAt time.Time `gorm:"autoCreateTime" json:"createdAt"`
+}
 ```
+
+> **Note:** `CreatedBy` preserves the audit trail from the existing `ContentVersion.CreatedBy` field (who created each version), rather than only tracking who published.
 
 #### Config JSON Format
 
@@ -209,29 +212,40 @@ A page-level template is a named preset that defines:
 | `cases` | hero, card-grid |
 | `experts` | hero, team-grid |
 | `contact` | hero, contact-form, text-image (map) |
-| `global` | (site-wide settings — migrated to theme tokens, not a page template) |
+| `global` | (site-wide settings — not a page template, see below) |
 
-The `global` content document is special — it holds site-wide config (site name, logo, footer, navigation). This migrates to a separate `site_config` table or the existing `global_configs` mechanism, not to a page template.
+**`global` content document migration:** The `global` content document holds site-wide config (site name, logo, footer content, navigation structure). This migrates to the **existing `global_configs` table** (`GlobalConfig` model), which already stores published site-wide configuration per locale. Specifically:
+
+- `global.siteName` → `GlobalConfig.SiteName`
+- `global.logo` → `GlobalConfig.LogoURL`
+- `global.footer` → `GlobalConfig.FooterConfig` (JSON field)
+- `global.navigation` → `GlobalConfig.NavigationConfig` (JSON field)
+- Fields not covered by `GlobalConfig` are added as new columns on the existing model
+
+The `global` content document's version history is preserved in `page_versions` with a sentinel `page_id` (e.g., `page_id=0` or a dedicated `global_config_versions` table) for rollback capability. The draft/publish workflow for global config is handled through `GlobalConfig`'s existing mechanism.
 
 Templates are stored in a `page_templates` table:
 
-```sql
-CREATE TABLE page_templates (
-    id          SERIAL PRIMARY KEY,
-    key         VARCHAR(100) NOT NULL UNIQUE,
-    name_zh     VARCHAR(200) NOT NULL,
-    name_en     VARCHAR(200) NOT NULL,
-    description_zh TEXT NOT NULL DEFAULT '',
-    description_en TEXT NOT NULL DEFAULT '',
-    category    VARCHAR(50) NOT NULL DEFAULT 'custom', -- 'builtin' | 'custom' | 'theme'
-    config      JSONB NOT NULL,                         -- template definition (sections + tokens)
-    thumbnail   VARCHAR(500),                           -- preview image path
-    created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at  TIMESTAMP NOT NULL DEFAULT NOW()
-);
+```go
+// PageTemplate defines a reusable page layout preset.
+type PageTemplate struct {
+    ID            uint   `gorm:"primaryKey" json:"id"`
+    Key           string `gorm:"uniqueIndex;size:100;not null" json:"key"`
+    NameZh        string `gorm:"size:200;not null" json:"nameZh"`
+    NameEn        string `gorm:"size:200;not null" json:"nameEn"`
+    DescriptionZh string `gorm:"type:text;not null;default:''" json:"descriptionZh"`
+    DescriptionEn string `gorm:"type:text;not null;default:''" json:"descriptionEn"`
+    Category      string `gorm:"size:50;not null;default:'custom'" json:"category"` // "builtin" | "custom" | "theme"
+    Config        JSONMap `gorm:"type:text;not null" json:"config"`                  // template definition (sections + tokens)
+    Thumbnail     string `gorm:"size:500" json:"thumbnail"`
+    CreatedAt     time.Time `gorm:"autoCreateTime" json:"createdAt"`
+    UpdatedAt     time.Time `gorm:"autoUpdateTime" json:"updatedAt"`
+}
 ```
 
 ### Section Variants
+
+> **Implementation note on existing components:** Adding variant support requires modifying existing section components. Each component currently implements a single layout. The migration adds a `variant` prop to `SectionProps` and defaults to `"default"` so existing sections continue to work unchanged. New variants are added incrementally — each section starts with only `variant: "default"` mapping to its current behavior, and additional variants are added as needed over time. This is an additive, non-breaking change to each component.
 
 Each section component supports multiple layout variants. The variant list is defined in the frontend component registry and exposed to the editor:
 
@@ -363,43 +377,113 @@ PUT    /admin/themes/:id/apply            — apply theme tokens to site
 
 ### Migration Plan
 
-One-time migration from the two existing systems to the unified system:
+One-time migration from the two existing systems to the unified system.
 
-**Step 1: Create new tables**
-- `unified_pages` (or alter `pages` to add new columns)
-- `page_versions`
-- `page_templates`
+#### Step 1: Create new tables
 
-**Step 2: Migrate content documents → page templates + unified pages**
-- For each of the 8 `content_documents` rows:
-  - Convert its TypeScript schema → a `page_templates` row with section definitions
-  - Convert its `draft_config` / `published_config` → unified section-based config JSON
-  - Create a `unified_pages` row with `mode: "template"` referencing the template
-  - Copy version history from `content_versions` → `page_versions`
+Create `unified_pages`, `page_versions`, `page_templates` via GORM AutoMigrate + goose migration for indexes.
 
-**Step 3: Migrate block pages → unified pages**
-- For each existing `pages` row (where `isThemePage` is false):
-  - Copy `config.sections` → `draft_config` and `published_config`
-  - Add bilingual data wrappers to section data fields
-  - Set `mode: "composable"`
-  - Set `draft_version: 1`, `published_version: 1` (if status was published)
+#### Step 2: Migrate content documents → page templates + unified pages
 
-**Step 4: Update frontend**
+For each of the 7 page-type `content_documents` rows (excluding `global`):
+
+**2a. ID assignment:** Assign deterministic integer IDs to each content document for the FK mapping:
+
+| PageKey | Assigned unified_pages.id |
+|---|---|
+| `home` | 1 |
+| `about` | 2 |
+| `advantages` | 3 |
+| `core-services` | 4 |
+| `cases` | 5 |
+| `experts` | 6 |
+| `contact` | 7 |
+
+Block pages migrated in Step 3 start from ID 100+ (or use auto-increment above 7).
+
+**2b. Config conversion — content document schema → sections array:**
+
+Content documents use object-keyed configs (e.g., `{ hero: {...}, about: {...}, advantages: {...} }`). Each top-level key maps to a section type:
+
+| Content key | Section type | Field mapping |
+|---|---|---|
+| `hero` | `hero` | `hero.title` → `data.title`, `hero.subtitle` → `data.subtitle`, `hero.backgroundImage` → `data.backgroundImage` |
+| `about` / `companyProfile` | `company-profile` | `about.descriptions[]` → `data.descriptions[]`, `about.image` → `data.image` |
+| `advantages` / `cards` | `card-grid` or `checklist` | `advantages.cards[].title` → `data.cards[].title`, etc. |
+| `services` | `service-cards` | `services.items[]` → `data.cards[]` |
+| `team` | `team-grid` | `team.members[]` → `data.members[]` |
+| `contact` | `contact-form` | `contact.fields` → `data.fields` |
+| `history` / `richText` | `rich-text` | `history.content` → `data.content` |
+| `map` | `text-image` | `map.image` → `data.image`, `map.address` → `data.text` |
+
+The implementation writes a Go migration function (not raw SQL) that reads each `content_documents` row, parses the JSON, and transforms it key-by-key into the sections array format. Each schema is small and known at migration time, so the mapping is exhaustive and testable.
+
+**Bilingual fields:** Content document configs already use `{ zh: "...", en: "..." }` objects for localized text (confirmed by the `normalizeConfigForLocale()` function in the frontend). These are preserved as-is — no transformation needed.
+
+**2c. Version history migration:**
+
+For each `content_versions` row:
+- Map `content_versions.page_key` (string) → `page_versions.page_id` (int) using the ID assignment table above
+- Apply the same config transformation (object-keyed → sections array) to each version's config
+- Map `content_versions.created_by` → `page_versions.created_by`
+- Map `content_versions.version` → `page_versions.version`
+
+**2d. Migrate `global` content document:**
+
+See the `global` migration note in the Templates section above. `global` config fields map to `GlobalConfig` columns; version history is preserved separately.
+
+#### Step 3: Migrate block pages → unified pages
+
+For each existing `pages` row (where `isThemePage` is false):
+
+**3a. Config format:** Block pages already use `{ sections: [{type, data, settings}] }` format. The migration:
+- Copies `config` → both `draft_config` and `published_config`
+- Adds `variant: "default"` to each section (new field, backward-compatible)
+- Adds `locked: false` to each section
+- Sets `draft_version: 1`, `published_version: 1` (if status was `published`), `published_version: 0` (if draft)
+
+**3b. Bilingual data fields:** Current block page section data uses flat strings (e.g., `"title": "关于我们"`). The migration wraps these in bilingual objects:
+- For each string field in `data`: `"title": "关于我们"` → `"title": { "zh": "关于我们", "en": "" }`
+- The source locale is assumed to be `zh` (the site's primary locale)
+- Non-string fields (numbers, booleans, arrays of objects) are left unchanged
+- The migration script identifies localizable fields per section type using a whitelist:
+
+| Section type | Localizable fields (wrapped in `{zh, en}`) |
+|---|---|
+| `hero` | `title`, `subtitle`, `cta.text` |
+| `card-grid` | `title`, `subtitle`, `cards[].title`, `cards[].description` |
+| `rich-text` | `content`, `title` |
+| `contact-form` | `title`, `subtitle`, `submitText`, `fields[].label`, `fields[].placeholder` |
+| `service-cards` | `title`, `subtitle`, `cards[].title`, `cards[].description` |
+| `team-grid` | `title`, `subtitle`, `members[].name`, `members[].role`, `members[].bio` |
+| `text-image` | `title`, `text` |
+| `checklist` | `title`, `items[].title`, `items[].description` |
+| `company-profile` | `title`, `description`, `stats[].label` |
+
+**3c. Down migration safety:** The down migration reverses the bilingual wrapping by extracting the `zh` value from each `{ zh, en }` object back to a flat string. Since `zh` is the primary locale and the source of all existing data, no information is lost on rollback.
+
+#### Step 4: Update frontend
+
 - Remove hardcoded page components (`pages/about/page.tsx`, etc.) and their TypeScript schemas
 - Remove `content_documents` API client code
 - Update `DynamicPage.tsx` to handle both modes via `SectionRenderer`
 - Build the unified editor (replaces both current editors)
-- Add variant support to each section component
+- Add `variant` prop to `SectionProps` (defaults to `"default"`)
+- Update each section component to accept `variant` and render its current layout as the `"default"` variant
+- Add `useLocalizedData(data)` hook that extracts current locale from `{ zh, en }` objects
 
-**Step 5: Update backend**
+#### Step 5: Update backend
+
 - Remove `content_document` model, repository, service, and handler
 - Remove `content_versions` model and repository
 - Extend page handler with draft/publish/version endpoints
 - Add template handler
 - Add theme export/import handler
 
-**Step 6: Drop old tables**
+#### Step 6: Drop old tables
+
 - Drop `content_documents` and `content_versions` tables via goose migration
+- Goose down migration restores old tables and runs reverse data migration
 
 ### Translation Tracking
 
