@@ -1,4 +1,7 @@
-.PHONY: dev dev-backend dev-frontend build-backend stop help
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+BUILD_TIME ?= $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
+
+.PHONY: dev dev-backend dev-frontend build-backend build-cli stop help
 
 # ── 一键启动 ──────────────────────────────────────────────
 dev: ## 启动前后端（后端 :8088 + 前端 :3000）
@@ -21,7 +24,11 @@ dev-frontend: ## 启动前端 dev server
 build-backend: ## 编译后端
 	@cd backend && go build -o server ./cmd/server/
 
-build: build-backend ## 编译前后端
+build-cli: ## 编译 CLI 工具
+	@cd backend && go build -ldflags '-X main.Version=$(VERSION) -X main.BuildTime=$(BUILD_TIME)' -o impress ./cmd/impress/
+	@echo "Built CLI $(VERSION)"
+
+build: build-backend build-cli ## 编译前后端 + CLI
 	@cd frontend && pnpm build
 
 # ── 停止 ──────────────────────────────────────────────────
