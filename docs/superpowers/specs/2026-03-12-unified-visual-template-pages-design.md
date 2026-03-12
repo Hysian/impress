@@ -213,16 +213,36 @@ A page-level template is a named preset that defines:
 | `experts` | hero, team-grid |
 | `contact` | hero, contact-form, text-image (map) |
 | `global` | (site-wide settings — not a page template, see below) |
+| `theme` | (active theme config — not a page template, see below) |
 
-**`global` content document migration:** The `global` content document holds site-wide config (site name, logo, footer content, navigation structure). This migrates to the **existing `global_configs` table** (`GlobalConfig` model), which already stores published site-wide configuration per locale. Specifically:
+**`global` and `theme` content document migration:**
 
-- `global.siteName` → `GlobalConfig.SiteName`
-- `global.logo` → `GlobalConfig.LogoURL`
-- `global.footer` → `GlobalConfig.FooterConfig` (JSON field)
-- `global.navigation` → `GlobalConfig.NavigationConfig` (JSON field)
-- Fields not covered by `GlobalConfig` are added as new columns on the existing model
+The `content_documents` table has 9 `PageKey` values, not 7. Two are non-page configs:
 
-The `global` content document's version history is preserved in `page_versions` with a sentinel `page_id` (e.g., `page_id=0` or a dedicated `global_config_versions` table) for rollback capability. The draft/publish workflow for global config is handled through `GlobalConfig`'s existing mechanism.
+- **`global`** — site-wide settings (site name, logo, footer, navigation)
+- **`theme`** — active theme config (colors, typography, token overrides)
+
+Neither `global` nor `theme` has an existing dedicated model in the codebase — both are stored as `content_documents` rows with JSON configs accessed via `contentDocRepo.FindByPageKey()`.
+
+**Migration target:** Create a new **`SiteConfig`** model to replace both:
+
+```go
+// SiteConfig stores site-wide configuration (replaces global and theme content documents).
+type SiteConfig struct {
+    ID               uint    `gorm:"primaryKey" json:"id"`
+    Key              string  `gorm:"uniqueIndex;size:50;not null" json:"key"` // "global" | "theme"
+    DraftConfig      JSONMap `gorm:"type:text" json:"draftConfig"`
+    DraftVersion     int     `gorm:"not null;default:1" json:"draftVersion"`
+    PublishedConfig  JSONMap `gorm:"type:text" json:"publishedConfig"`
+    PublishedVersion int     `gorm:"not null;default:0" json:"publishedVersion"`
+    CreatedAt        time.Time `gorm:"autoCreateTime" json:"createdAt"`
+    UpdatedAt        time.Time `gorm:"autoUpdateTime" json:"updatedAt"`
+}
+```
+
+This preserves the draft/publish dual-version workflow. Version history for `global` and `theme` is stored in `page_versions` using sentinel page IDs (`global` → page_id=9998, `theme` → page_id=9999) to maintain rollback capability without conflicting with real page IDs.
+
+The existing `theme/handler.go` endpoints (`GET/PUT /admin/theme/config`) and `content/get_draft.go` references to `PageKeyGlobal`/`PageKeyTheme` are updated to read from `SiteConfig` instead of `content_documents`.
 
 Templates are stored in a `page_templates` table:
 
@@ -385,7 +405,7 @@ Create `unified_pages`, `page_versions`, `page_templates` via GORM AutoMigrate +
 
 #### Step 2: Migrate content documents → page templates + unified pages
 
-For each of the 7 page-type `content_documents` rows (excluding `global`):
+For each of the 7 page-type `content_documents` rows (excluding `global` and `theme`, which migrate to `SiteConfig` — see above):
 
 **2a. ID assignment:** Assign deterministic integer IDs to each content document for the FK mapping:
 
@@ -464,13 +484,15 @@ For each existing `pages` row (where `isThemePage` is false):
 
 #### Step 4: Update frontend
 
+- **Update `SectionData` type** in `frontend/src/theme/types.ts` to add `variant?: string` and `locked?: boolean` fields — this is the wire-format type used by `SectionRenderer`, `DynamicPage`, and the editor
+- **Update `SectionRenderer`** to read `section.variant` and dispatch to the correct variant component (falling back to default)
+- **Update `SectionProps`** to include `variant?: string` prop
+- Update each section component to accept `variant` and render its current layout as the `"default"` variant
+- Add `useLocalizedData(data)` hook that extracts current locale from `{ zh, en }` objects
 - Remove hardcoded page components (`pages/about/page.tsx`, etc.) and their TypeScript schemas
 - Remove `content_documents` API client code
 - Update `DynamicPage.tsx` to handle both modes via `SectionRenderer`
 - Build the unified editor (replaces both current editors)
-- Add `variant` prop to `SectionProps` (defaults to `"default"`)
-- Update each section component to accept `variant` and render its current layout as the `"default"` variant
-- Add `useLocalizedData(data)` hook that extracts current locale from `{ zh, en }` objects
 
 #### Step 5: Update backend
 
