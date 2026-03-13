@@ -54,7 +54,7 @@ export default function SectionRenderer({ section }: SectionRendererProps) {
 
   return (
     <SectionWrapper settings={section.settings}>
-      <Component data={section.data} settings={section.settings} />
+      <Component data={section.data} settings={section.settings} variant={section.variant} />
     </SectionWrapper>
   );
 }
