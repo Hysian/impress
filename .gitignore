@@ -51,3 +51,6 @@ backend/version.json
 
 # OS files
 .DS_Store
+
+# Worktrees
+.worktrees/
