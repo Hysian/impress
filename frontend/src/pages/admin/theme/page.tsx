@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getThemeSettings, updateThemeSettings } from "@/api/theme";
 import { listInstalledThemes, updateThemeConfig } from "@/api/installedThemes";
+import { exportTheme, importTheme } from "@/api/themeExport";
 import { defaultTokens, type ThemeTokens } from "@/theme";
 import { useThemeManager } from "@/plugins/hooks";
 import ThemeManagementModal from "./ThemeManagementModal";
@@ -43,6 +44,43 @@ export default function AdminThemePage() {
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [settingsMsg, setSettingsMsg] = useState("");
   const [themeDbId, setThemeDbId] = useState<number | null>(null);
+
+  // --- Export/Import ---
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [exportImportMsg, setExportImportMsg] = useState("");
+
+  const handleExport = async () => {
+    setExportImportMsg("");
+    try {
+      const data = await exportTheme("my-theme");
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `theme-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setExportImportMsg("导出成功");
+    } catch {
+      setExportImportMsg("导出失败");
+    }
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    setExportImportMsg("");
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const pkg = JSON.parse(text);
+      await importTheme(pkg);
+      setExportImportMsg("导入成功");
+    } catch {
+      setExportImportMsg("导入失败，请检查文件格式");
+    }
+    // Reset file input
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   // Fetch settings from installed themes
   useEffect(() => {
@@ -132,13 +170,40 @@ export default function AdminThemePage() {
       {/* Header row */}
       <div className="mb-6 flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-900">主题</h2>
-        <button
-          onClick={() => setShowThemeModal(true)}
-          className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-700"
-        >
-          主题管理
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExport}
+            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-700"
+          >
+            导出主题
+          </button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-700"
+          >
+            导入主题
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleImportFile}
+            className="hidden"
+          />
+          <button
+            onClick={() => setShowThemeModal(true)}
+            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-700"
+          >
+            主题管理
+          </button>
+        </div>
       </div>
+
+      {exportImportMsg && (
+        <div className={`mb-4 p-3 rounded-md text-sm ${exportImportMsg.includes("成功") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+          {exportImportMsg}
+        </div>
+      )}
 
       {/* Active theme card */}
       {manifest && (
