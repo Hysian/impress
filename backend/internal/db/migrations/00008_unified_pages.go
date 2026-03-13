@@ -40,6 +40,12 @@ var pageKeyNames = map[string][2]string{
 }
 
 func upUnifiedPages(ctx context.Context, tx *sql.Tx) error {
+	// Check if old tables exist (fresh DB won't have them)
+	if !tableExists(ctx, tx, "content_documents") {
+		log.Println("Migration 00008_unified_pages: no old tables found (fresh DB), skipping data migration")
+		return nil
+	}
+
 	// Step 1: Migrate global + theme content docs → site_configs
 	if err := migrateContentDocsToSiteConfigs(ctx, tx); err != nil {
 		return fmt.Errorf("migrate site_configs: %w", err)
@@ -51,17 +57,29 @@ func upUnifiedPages(ctx context.Context, tx *sql.Tx) error {
 	}
 
 	// Step 3: Migrate content_versions → page_versions
-	if err := migrateContentVersions(ctx, tx); err != nil {
-		return fmt.Errorf("migrate content versions: %w", err)
+	if tableExists(ctx, tx, "content_versions") {
+		if err := migrateContentVersions(ctx, tx); err != nil {
+			return fmt.Errorf("migrate content versions: %w", err)
+		}
 	}
 
 	// Step 4: Migrate block pages → unified_pages (IDs starting from 100)
-	if err := migrateBlockPages(ctx, tx); err != nil {
-		return fmt.Errorf("migrate block pages: %w", err)
+	if tableExists(ctx, tx, "pages") {
+		if err := migrateBlockPages(ctx, tx); err != nil {
+			return fmt.Errorf("migrate block pages: %w", err)
+		}
 	}
 
 	log.Println("Migration 00008_unified_pages: up complete")
 	return nil
+}
+
+// tableExists checks if a table exists in the database.
+func tableExists(ctx context.Context, tx *sql.Tx, name string) bool {
+	var count int
+	err := tx.QueryRowContext(ctx,
+		"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?", name).Scan(&count)
+	return err == nil && count > 0
 }
 
 func downUnifiedPages(ctx context.Context, tx *sql.Tx) error {

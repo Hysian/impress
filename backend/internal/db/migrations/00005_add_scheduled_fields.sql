@@ -1,6 +1,5 @@
 -- +goose Up
-ALTER TABLE articles ADD COLUMN scheduled_at DATETIME;
-ALTER TABLE pages ADD COLUMN scheduled_at DATETIME;
+-- No-op: scheduled_at columns are now created by GORM AutoMigrate.
 
 -- +goose Down
--- Best-effort: SQLite <3.35 doesn't support DROP COLUMN
+-- No-op
