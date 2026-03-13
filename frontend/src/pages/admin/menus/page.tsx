@@ -14,8 +14,8 @@ import {
 import type { MenuGroup, MenuItem } from "@/api/menus";
 import { getCategories, getTags, getAdminArticles } from "@/api/articles";
 import type { Category, Tag, Article } from "@/api/articles";
-import { listPages } from "@/api/pages";
-import type { PageItem } from "@/api/pages";
+import { listUnifiedPages } from "@/api/unifiedPages";
+import type { UnifiedPageItem } from "@/api/unifiedPages";
 import MetadataEditor from "@/components/admin/MetadataEditor";
 
 // ── Tree utilities ──
@@ -139,8 +139,8 @@ function RefSlugPicker({
           const res = await getAdminArticles(1, 200);
           opts = (res.items || []).map((a: Article) => ({ slug: a.slug, label: a.zhTitle || a.enTitle || a.slug }));
         } else if (type === "page") {
-          const pages = await listPages();
-          opts = pages.map((p: PageItem) => ({ slug: p.slug, label: p.title?.zh || p.title?.en || p.slug }));
+          const pages = await listUnifiedPages();
+          opts = pages.map((p: UnifiedPageItem) => ({ slug: p.slug, label: p.zhTitle || p.enTitle || p.slug }));
         }
         if (!cancelled) setOptions(opts);
       } catch {

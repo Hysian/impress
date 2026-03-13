@@ -312,9 +312,9 @@ export default function PageEditorPage() {
       setSortOrder(meta.sortOrder);
       setStatus(meta.status);
       setPublishedVersion(meta.publishedVersion);
-      setDraftVersion(draft.version);
+      setDraftVersion(draft.draftVersion);
 
-      const config = draft.config as { sections?: SectionData[] } | null;
+      const config = draft.draftConfig as { sections?: SectionData[] } | null;
       const loadedSections = config?.sections || [];
       setSections(loadedSections);
       setSectionJson(JSON.stringify(loadedSections, null, 2));
@@ -464,7 +464,7 @@ export default function PageEditorPage() {
       const result: any = await updateUnifiedPageDraft(pageId, draftVersion, {
         sections: sectionsToSave,
       });
-      setDraftVersion(result.version ?? draftVersion + 1);
+      setDraftVersion(result.draftVersion ?? draftVersion + 1);
       setSuccessMsg("草稿已保存");
       setTimeout(() => setSuccessMsg(""), 3000);
     } catch (err: any) {

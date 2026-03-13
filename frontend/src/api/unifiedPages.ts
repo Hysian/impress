@@ -23,8 +23,8 @@ export interface UnifiedPageItem {
 export interface UnifiedPageDraft {
   id: number;
   slug: string;
-  config: JSONMap;
-  version: number;
+  draftConfig: JSONMap;
+  draftVersion: number;
   publishedVersion: number;
   updatedAt: string;
 }
@@ -46,7 +46,7 @@ export const listUnifiedPages = (status?: string, mode?: string) => {
   const params = new URLSearchParams();
   if (status) params.set("status", status);
   if (mode) params.set("mode", mode);
-  return http.get<UnifiedPageItem[]>(`/admin/pages?${params}`).then((r) => r.data);
+  return http.get<{ items: UnifiedPageItem[] }>(`/admin/pages?${params}`).then((r) => r.data.items ?? []);
 };
 
 export const getUnifiedPage = (id: number) =>
@@ -62,8 +62,8 @@ export const deleteUnifiedPage = (id: number) =>
 export const getUnifiedPageDraft = (id: number) =>
   http.get<UnifiedPageDraft>(`/admin/pages/${id}/draft`).then((r) => r.data);
 
-export const updateUnifiedPageDraft = (id: number, version: number, config: JSONMap) =>
-  http.put(`/admin/pages/${id}/draft`, { config }, {
+export const updateUnifiedPageDraft = (id: number, version: number, draftConfig: JSONMap) =>
+  http.put(`/admin/pages/${id}/draft`, { draftConfig }, {
     headers: { "If-Match": String(version) },
   }).then((r) => r.data);
 

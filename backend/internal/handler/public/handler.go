@@ -65,7 +65,15 @@ func (h *Handler) GetPublicContent(c *gin.Context) {
 	// Try unified_pages first (slug == pageKey for the 7 builtin pages)
 	if h.pageRepo != nil {
 		page, err := h.pageRepo.FindBySlug(c.Request.Context(), pageKeyStr)
-		if err == nil && len(page.PublishedConfig) > 0 {
+		if err == nil {
+			// Page exists in unified_pages — this is the authoritative source.
+			// If unpublished, return 404 (don't fall through to content_documents).
+			if len(page.PublishedConfig) == 0 {
+				metrics.Global().RecordPublicGetFailure()
+				c.JSON(404, apierror.NotFound("page not published"))
+				return
+			}
+
 			// Convert sections-based config back to flat content doc format
 			publishedMap := model.JSONMap(page.PublishedConfig)
 			flatConfig := service.ConvertSectionsToContentDoc(pageKeyStr, publishedMap)
@@ -85,7 +93,7 @@ func (h *Handler) GetPublicContent(c *gin.Context) {
 		}
 	}
 
-	// Fallback: read from legacy content_documents
+	// Fallback: read from legacy content_documents (global, theme, etc.)
 	doc, err := h.docRepo.FindByPageKey(c.Request.Context(), pageKey)
 	if err != nil {
 		metrics.Global().RecordPublicGetFailure()

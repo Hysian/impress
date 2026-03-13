@@ -28,7 +28,7 @@ export default function DynamicPage() {
     http
       .get(`/public/pages/${slug}`, { params: { locale } })
       .then((res) => {
-        setConfig(res.data.config ?? res.data);
+        setConfig(res.data.publishedConfig ?? res.data.config ?? res.data);
         setLoading(false);
       })
       .catch((e) => {

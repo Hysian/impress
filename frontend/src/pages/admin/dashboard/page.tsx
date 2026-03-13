@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { getAnalyticsSummary } from "@/api/analytics";
 import { getAdminArticles } from "@/api/articles";
 import { listMedia } from "@/api/media";
-import { listPages } from "@/api/pages";
+import { listUnifiedPages } from "@/api/unifiedPages";
 
 interface StatCard {
   label: string;
@@ -34,7 +34,7 @@ export default function AdminDashboardPage() {
       setLoading(true);
       const results = await Promise.allSettled([
         getAnalyticsSummary(),
-        listPages(),
+        listUnifiedPages(),
         getAdminArticles(1, 1),
         listMedia(1, 1),
       ]);
