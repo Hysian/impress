@@ -11,12 +11,12 @@ import (
 
 // Handler handles theme-related HTTP requests
 type Handler struct {
-	contentDocRepo repository.ContentDocumentRepository
+	siteConfigRepo repository.SiteConfigRepository
 }
 
 // NewHandler creates a new theme handler
-func NewHandler(contentDocRepo repository.ContentDocumentRepository) *Handler {
-	return &Handler{contentDocRepo: contentDocRepo}
+func NewHandler(siteConfigRepo repository.SiteConfigRepository) *Handler {
+	return &Handler{siteConfigRepo: siteConfigRepo}
 }
 
 // defaultThemeConfig returns the default theme token values
@@ -35,11 +35,11 @@ func defaultThemeConfig() model.JSONMap {
 			"heading": "system-ui, -apple-system, sans-serif",
 		},
 		"layout": map[string]interface{}{
-			"maxWidth":        "1200px",
-			"borderRadius":    "0.5rem",
-			"contentPadding":  "1.5rem",
-			"sectionSpacing":  "5rem",
-			"contentGap":      "2rem",
+			"maxWidth":       "1200px",
+			"borderRadius":   "0.5rem",
+			"contentPadding": "1.5rem",
+			"sectionSpacing": "5rem",
+			"contentGap":     "2rem",
 		},
 	}
 }
@@ -52,7 +52,7 @@ func defaultThemeConfig() model.JSONMap {
 // @Success      200 {object} object
 // @Router       /public/theme [get]
 func (h *Handler) PublicGet(c *gin.Context) {
-	doc, err := h.contentDocRepo.FindByPageKey(c.Request.Context(), model.PageKeyTheme)
+	doc, err := h.siteConfigRepo.FindByKey(c.Request.Context(), "theme")
 	if err != nil {
 		// Return default theme if not configured
 		c.JSON(http.StatusOK, defaultThemeConfig())
@@ -77,7 +77,7 @@ func (h *Handler) PublicGet(c *gin.Context) {
 // @Success      200 {object} object
 // @Router       /admin/theme [get]
 func (h *Handler) AdminGet(c *gin.Context) {
-	doc, err := h.contentDocRepo.FindByPageKey(c.Request.Context(), model.PageKeyTheme)
+	doc, err := h.siteConfigRepo.FindByKey(c.Request.Context(), "theme")
 	if err != nil {
 		// Return default with version info
 		c.JSON(http.StatusOK, gin.H{
@@ -136,24 +136,24 @@ func (h *Handler) AdminUpdate(c *gin.Context) {
 		return
 	}
 
-	// Try to find existing theme document
-	existing, err := h.contentDocRepo.FindByPageKey(c.Request.Context(), model.PageKeyTheme)
+	// Try to find existing theme config
+	existing, err := h.siteConfigRepo.FindByKey(c.Request.Context(), "theme")
 	if err != nil {
-		// Create new theme document if it doesn't exist
-		doc := &model.ContentDocument{
-			PageKey:          model.PageKeyTheme,
+		// Create new theme config if it doesn't exist
+		sc := &model.SiteConfig{
+			Key:              "theme",
 			DraftConfig:      input.Config,
 			DraftVersion:     1,
 			PublishedConfig:  input.Config,
 			PublishedVersion: 1,
 		}
-		if createErr := h.contentDocRepo.Create(c.Request.Context(), doc); createErr != nil {
+		if createErr := h.siteConfigRepo.Upsert(c.Request.Context(), sc); createErr != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "保存主题设置失败"}})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{
-			"draftConfig":  doc.DraftConfig,
-			"draftVersion": doc.DraftVersion,
+			"draftConfig":  sc.DraftConfig,
+			"draftVersion": sc.DraftVersion,
 			"message":      "主题设置已创建",
 		})
 		return
@@ -170,7 +170,7 @@ func (h *Handler) AdminUpdate(c *gin.Context) {
 	existing.DraftVersion = input.DraftVersion + 1
 	existing.PublishedConfig = input.Config
 	existing.PublishedVersion = input.DraftVersion + 1
-	if err := h.contentDocRepo.Update(c.Request.Context(), existing); err != nil {
+	if err := h.siteConfigRepo.Update(c.Request.Context(), existing); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "保存主题设置失败"}})
 		return
 	}

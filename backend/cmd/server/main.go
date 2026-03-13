@@ -363,7 +363,7 @@ func main() {
 	auditlogHandlerInst := auditlogHandler.NewHandler(auditEventRepo)
 	sitemapHandlerInst := sitemapHandler.NewHandler(contentDocRepo, articleRepo, cfg.BaseURL)
 	pageHandlerInst := pageHandler.NewHandler(pageRepo, installedThemeRepo)
-	themeHandlerInst := themeHandler.NewHandler(contentDocRepo)
+	themeHandlerInst := themeHandler.NewHandler(siteConfigRepo)
 	installedThemeHandlerInst := installedThemeHandler.NewHandler(installedThemeRepo, themePageService)
 	bootstrapHandlerInst := bootstrapHandler.NewHandler(contentDocRepo, installedThemeRepo, pageRepo)
 	formSubmissionHandlerInst := formSubmissionHandler.NewHandler(formSubmissionRepo)
