@@ -1,8 +1,6 @@
 package model
 
 import (
-	"database/sql/driver"
-	"encoding/json"
 	"errors"
 	"time"
 
@@ -60,43 +58,6 @@ type ContentDocument struct {
 	PublishedConfig JSONMap        `gorm:"type:jsonb"`
 	PublishedVersion int           `gorm:"not null;default:0"`
 	UpdatedAt       time.Time      `gorm:"autoUpdateTime"`
-}
-
-// JSONMap represents a JSON object stored in the database
-type JSONMap map[string]interface{}
-
-// Value implements the driver.Valuer interface for database serialization
-func (j JSONMap) Value() (driver.Value, error) {
-	if j == nil {
-		return json.Marshal(map[string]interface{}{})
-	}
-	return json.Marshal(j)
-}
-
-// Scan implements the sql.Scanner interface for database deserialization
-func (j *JSONMap) Scan(value interface{}) error {
-	if value == nil {
-		*j = make(JSONMap)
-		return nil
-	}
-
-	var bytes []byte
-	switch v := value.(type) {
-	case []byte:
-		bytes = v
-	case string:
-		bytes = []byte(v)
-	default:
-		return errors.New("failed to scan JSONMap: unsupported type")
-	}
-
-	var result map[string]interface{}
-	if err := json.Unmarshal(bytes, &result); err != nil {
-		return err
-	}
-
-	*j = result
-	return nil
 }
 
 // TableName overrides the default table name
