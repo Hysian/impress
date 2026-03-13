@@ -56,6 +56,8 @@ import (
 	storageHandler "blotting-consultancy/internal/handler/storage"
 	systemHandler "blotting-consultancy/internal/handler/system"
 	translationHandler "blotting-consultancy/internal/handler/translation"
+	unifiedPageHandler "blotting-consultancy/internal/handler/unified_page"
+	pageTemplateHandler "blotting-consultancy/internal/handler/page_template"
 	"blotting-consultancy/internal/migration"
 	"blotting-consultancy/internal/middleware"
 	"blotting-consultancy/internal/model"
@@ -246,6 +248,11 @@ func main() {
 	glossaryRepo := repository.NewGormGlossaryRepository(database.DB)
 	storageConfigRepo := repository.NewGormStorageConfigRepository(database.DB)
 	siteRepo := repository.NewGormSiteRepository(database.DB)
+	unifiedPageRepo := repository.NewGormUnifiedPageRepository(database.DB)
+	pageVersionRepo := repository.NewGormPageVersionRepository(database.DB)
+	pageTemplateRepo := repository.NewGormPageTemplateRepository(database.DB)
+	siteConfigRepo := repository.NewGormSiteConfigRepository(database.DB)
+	_ = siteConfigRepo // wired to handlers in later tasks
 	log.Info("Repositories initialized")
 
 	// Initialize theme page service early (needed for seeding)
@@ -380,6 +387,9 @@ func main() {
 	storageHandlerInst := storageHandler.NewHandler(storageConfigRepo)
 	systemHandlerInst := systemHandler.NewHandler(database.DB, cfg.UploadDir)
 	translationHandlerInst := translationHandler.NewHandler(translationProvider, glossaryRepo, articleRepo)
+	unifiedPageSvc := service.NewUnifiedPageService(unifiedPageRepo, pageVersionRepo)
+	unifiedPageHdl := unifiedPageHandler.NewHandler(unifiedPageRepo, pageVersionRepo, unifiedPageSvc)
+	pageTemplateHdl := pageTemplateHandler.NewHandler(pageTemplateRepo)
 	log.Info("Handlers initialized")
 
 	// Setup Gin router
@@ -515,6 +525,10 @@ func main() {
 
 		// Public theme pages route
 		publicGroup.GET("/theme-pages", pageHandlerInst.PublicListThemePages)
+
+		// Public unified pages (new)
+		publicGroup.GET("/unified-pages", unifiedPageHdl.PublicList)
+		publicGroup.GET("/unified-pages/:slug", unifiedPageHdl.PublicGetBySlug)
 	}
 
 	// Public Q&A (knowledge base ask)
@@ -795,6 +809,26 @@ func main() {
 		adminGroup.POST("/glossary", translationHandlerInst.GlossaryCreate)
 		adminGroup.PUT("/glossary/:id", translationHandlerInst.GlossaryUpdate)
 		adminGroup.DELETE("/glossary/:id", translationHandlerInst.GlossaryDelete)
+
+		// Unified page management
+		adminGroup.GET("/unified-pages", unifiedPageHdl.AdminList)
+		adminGroup.GET("/unified-pages/:id", unifiedPageHdl.AdminGetByID)
+		adminGroup.POST("/unified-pages", unifiedPageHdl.AdminCreate)
+		adminGroup.GET("/unified-pages/:id/draft", unifiedPageHdl.AdminGetDraft)
+		adminGroup.PUT("/unified-pages/:id/draft", unifiedPageHdl.AdminUpdateDraft)
+		adminGroup.POST("/unified-pages/:id/publish", unifiedPageHdl.AdminPublish)
+		adminGroup.POST("/unified-pages/:id/unpublish", unifiedPageHdl.AdminUnpublish)
+		adminGroup.POST("/unified-pages/:id/rollback", unifiedPageHdl.AdminRollback)
+		adminGroup.GET("/unified-pages/:id/versions", unifiedPageHdl.AdminListVersions)
+		adminGroup.GET("/unified-pages/:id/versions/:version", unifiedPageHdl.AdminGetVersionDetail)
+		adminGroup.DELETE("/unified-pages/:id", unifiedPageHdl.AdminDelete)
+
+		// Page template management
+		adminGroup.GET("/templates", pageTemplateHdl.List)
+		adminGroup.POST("/templates", pageTemplateHdl.Create)
+		adminGroup.PUT("/templates/:id", pageTemplateHdl.Update)
+		adminGroup.DELETE("/templates/:id", pageTemplateHdl.Delete)
+		adminGroup.POST("/templates/:id/duplicate", pageTemplateHdl.Duplicate)
 	}
 
 	// SEO routes (public + admin)
