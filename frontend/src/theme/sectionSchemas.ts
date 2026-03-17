@@ -33,7 +33,7 @@ export const sectionSchemas: Record<string, FieldSchema[]> = {
   ],
   "service-cards": [
     { key: "title", type: "bilingual", label: "标题" },
-    { key: "services", type: "array", label: "服务项", itemSchema: [
+    { key: "items", type: "array", label: "服务项", itemSchema: [
       { key: "title", type: "bilingual", label: "标题" },
       { key: "description", type: "bilingual-textarea", label: "描述" },
       { key: "image", type: "media", label: "图片" },
@@ -73,6 +73,11 @@ export const sectionSchemas: Record<string, FieldSchema[]> = {
   "company-profile": [
     { key: "title", type: "bilingual", label: "标题" },
     { key: "description", type: "bilingual-textarea", label: "描述" },
+    { key: "descriptions", type: "array", label: "段落列表", itemSchema: [
+      { key: "zh", type: "textarea", label: "中文" },
+      { key: "en", type: "textarea", label: "英文" },
+    ]},
+    { key: "image", type: "media", label: "图片" },
   ],
   "rich-text": [
     { key: "content", type: "bilingual-textarea", label: "内容" },

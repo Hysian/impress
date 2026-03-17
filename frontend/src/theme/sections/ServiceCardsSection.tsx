@@ -10,10 +10,12 @@ export interface ServiceCard {
 export interface ServiceCardsSectionData {
   title?: string;
   services?: ServiceCard[];
+  items?: ServiceCard[];
 }
 
 export default function ServiceCardsSection({ data }: SectionProps<ServiceCardsSectionData>) {
-  const { title, services } = data;
+  const { title, items, services } = data;
+  const serviceList = items || services;
 
   return (
     <div className="max-w-layout w-full h-full mx-auto px-4 md:px-content xl:px-8">
@@ -28,9 +30,9 @@ export default function ServiceCardsSection({ data }: SectionProps<ServiceCardsS
           </span>
         </div>
       )}
-      {services && services.length > 0 && (
+      {serviceList && serviceList.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 sm:gap-x-8 sm:gap-y-10 xl:gap-x-10 xl:gap-y-12">
-          {services.map((service, index) => (
+          {serviceList.map((service, index) => (
             <div
               key={index}
               className="flex flex-col sm:flex-row gap-4 sm:gap-5 p-4 sm:p-0 rounded-lg sm:rounded-none bg-surface-alt/80 sm:bg-transparent"

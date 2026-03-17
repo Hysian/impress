@@ -3,9 +3,18 @@ import type { FieldProps } from "./types";
 import ImagePickerModal from "@/components/admin/ImagePickerModal";
 import type { MediaItem } from "@/api/media";
 
+// Extract URL from value which may be a plain string or a MediaRef object {url, alt}
+function extractUrl(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (value && typeof value === "object" && "url" in value) {
+    return (value as { url: string }).url ?? "";
+  }
+  return "";
+}
+
 export default function MediaField({ schema, value, onChange }: FieldProps) {
   const [showPicker, setShowPicker] = useState(false);
-  const url = (value as string) ?? "";
+  const url = extractUrl(value);
 
   return (
     <div>
