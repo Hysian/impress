@@ -534,3 +534,50 @@ describe("StringArrayField", () => {
     expect(screen.getByText("+ 添加")).toBeInTheDocument();
   });
 });
+
+import ArrayField from "../fields/ArrayField";
+
+describe("ArrayField", () => {
+  const cardSchema = {
+    key: "cards", type: "array" as const, label: "卡片",
+    itemSchema: [
+      { key: "title", type: "bilingual" as const, label: "标题" },
+      { key: "image", type: "media" as const, label: "图片" },
+    ],
+  };
+
+  it("renders each item with sub-fields", () => {
+    render(
+      <ArrayField
+        schema={cardSchema}
+        value={[{ title: { zh: "卡1", en: "Card1" }, image: "/a.jpg" }]}
+        onChange={vi.fn()}
+      />
+    );
+    expect(screen.getByDisplayValue("卡1")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("/a.jpg")).toBeInTheDocument();
+  });
+
+  it("adds a new item", () => {
+    const onChange = vi.fn();
+    render(<ArrayField schema={cardSchema} value={[]} onChange={onChange} />);
+    fireEvent.click(screen.getByText("+ 添加"));
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange.mock.calls[0][0]).toHaveLength(1);
+  });
+
+  it("deletes an item", () => {
+    const onChange = vi.fn();
+    render(
+      <ArrayField
+        schema={cardSchema}
+        value={[{ title: { zh: "A", en: "" } }, { title: { zh: "B", en: "" } }]}
+        onChange={onChange}
+      />
+    );
+    fireEvent.click(screen.getAllByTitle("删除")[0]);
+    const result = onChange.mock.calls[0][0];
+    expect(result).toHaveLength(1);
+    expect(result[0].title.zh).toBe("B");
+  });
+});
