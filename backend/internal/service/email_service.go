@@ -2,9 +2,14 @@ package service
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
+	"fmt"
 	"log/slog"
+	"net"
+	"net/smtp"
 	"strings"
+	"time"
 
 	"blotting-consultancy/internal/model"
 	"blotting-consultancy/internal/repository"
@@ -128,4 +133,220 @@ func (s *EmailService) getTemplate(templates map[string]EmailTemplate, locale st
 		return t
 	}
 	return EmailTemplate{}
+}
+
+// ---------- SMTP Transport ----------
+
+// buildHTMLMessage constructs an RFC 5322 compliant email message with HTML content.
+func buildHTMLMessage(from, fromName, to, replyTo, subject, body string) []byte {
+	var b strings.Builder
+	if fromName != "" {
+		fmt.Fprintf(&b, "From: %s <%s>\r\n", fromName, from)
+	} else {
+		fmt.Fprintf(&b, "From: %s\r\n", from)
+	}
+	fmt.Fprintf(&b, "To: %s\r\n", to)
+	if replyTo != "" {
+		fmt.Fprintf(&b, "Reply-To: %s\r\n", replyTo)
+	}
+	fmt.Fprintf(&b, "Subject: %s\r\n", subject)
+	b.WriteString("MIME-Version: 1.0\r\n")
+	b.WriteString("Content-Type: text/html; charset=UTF-8\r\n")
+	b.WriteString("\r\n")
+	b.WriteString(body)
+	return []byte(b.String())
+}
+
+// sendMail dispatches the message via TLS or STARTTLS based on configuration.
+func (s *EmailService) sendMail(cfg *SMTPConfig, to, replyTo, subject, htmlBody string) error {
+	msg := buildHTMLMessage(cfg.FromAddress, cfg.FromName, to, replyTo, subject, htmlBody)
+	if cfg.UseTLS {
+		return s.sendTLS(cfg, to, msg)
+	}
+	return s.sendSTARTTLS(cfg, to, msg)
+}
+
+// sendSTARTTLS connects via plain TCP and upgrades with STARTTLS.
+func (s *EmailService) sendSTARTTLS(cfg *SMTPConfig, to string, msg []byte) error {
+	addr := net.JoinHostPort(cfg.Host, fmt.Sprintf("%d", cfg.Port))
+	dialer := &net.Dialer{Timeout: 10 * time.Second}
+	conn, err := dialer.Dial("tcp", addr)
+	if err != nil {
+		return fmt.Errorf("dial %s: %w", addr, err)
+	}
+
+	client, err := smtp.NewClient(conn, cfg.Host)
+	if err != nil {
+		conn.Close()
+		return fmt.Errorf("smtp new client: %w", err)
+	}
+	defer client.Close()
+
+	tlsCfg := &tls.Config{
+		ServerName:         cfg.Host,
+		InsecureSkipVerify: cfg.InsecureSkipVerify,
+	}
+	if err := client.StartTLS(tlsCfg); err != nil {
+		return fmt.Errorf("starttls: %w", err)
+	}
+
+	auth := smtp.PlainAuth("", cfg.Username, cfg.Password, cfg.Host)
+	if err := client.Auth(auth); err != nil {
+		return fmt.Errorf("auth: %w", err)
+	}
+
+	if err := client.Mail(cfg.FromAddress); err != nil {
+		return fmt.Errorf("mail from: %w", err)
+	}
+	if err := client.Rcpt(to); err != nil {
+		return fmt.Errorf("rcpt to: %w", err)
+	}
+
+	w, err := client.Data()
+	if err != nil {
+		return fmt.Errorf("data: %w", err)
+	}
+	if _, err := w.Write(msg); err != nil {
+		return fmt.Errorf("write: %w", err)
+	}
+	if err := w.Close(); err != nil {
+		return fmt.Errorf("close data: %w", err)
+	}
+
+	return client.Quit()
+}
+
+// sendTLS connects via implicit TLS (typically port 465).
+func (s *EmailService) sendTLS(cfg *SMTPConfig, to string, msg []byte) error {
+	addr := net.JoinHostPort(cfg.Host, fmt.Sprintf("%d", cfg.Port))
+	tlsCfg := &tls.Config{
+		ServerName:         cfg.Host,
+		InsecureSkipVerify: cfg.InsecureSkipVerify,
+	}
+	dialer := &net.Dialer{Timeout: 10 * time.Second}
+	conn, err := tls.DialWithDialer(dialer, "tcp", addr, tlsCfg)
+	if err != nil {
+		return fmt.Errorf("tls dial %s: %w", addr, err)
+	}
+
+	client, err := smtp.NewClient(conn, cfg.Host)
+	if err != nil {
+		conn.Close()
+		return fmt.Errorf("smtp new client: %w", err)
+	}
+	defer client.Close()
+
+	auth := smtp.PlainAuth("", cfg.Username, cfg.Password, cfg.Host)
+	if err := client.Auth(auth); err != nil {
+		return fmt.Errorf("auth: %w", err)
+	}
+
+	if err := client.Mail(cfg.FromAddress); err != nil {
+		return fmt.Errorf("mail from: %w", err)
+	}
+	if err := client.Rcpt(to); err != nil {
+		return fmt.Errorf("rcpt to: %w", err)
+	}
+
+	w, err := client.Data()
+	if err != nil {
+		return fmt.Errorf("data: %w", err)
+	}
+	if _, err := w.Write(msg); err != nil {
+		return fmt.Errorf("write: %w", err)
+	}
+	if err := w.Close(); err != nil {
+		return fmt.Errorf("close data: %w", err)
+	}
+
+	return client.Quit()
+}
+
+// ---------- High-level send methods ----------
+
+// SendAutoReply sends an auto-reply email to the form submitter.
+func (s *EmailService) SendAutoReply(ctx context.Context, submission *model.FormSubmission, cfg *EmailConfig) error {
+	if !cfg.AutoReply.Enabled {
+		return nil
+	}
+	if !cfg.SMTP.IsConfigured() {
+		return fmt.Errorf("SMTP not configured")
+	}
+	if submission.Email == "" {
+		return nil
+	}
+
+	locale := submission.Locale
+	if locale == "" {
+		locale = "zh"
+	}
+
+	// Get auto-reply templates for locale
+	localeTemplates, ok := cfg.Templates[locale]
+	if !ok {
+		localeTemplates = cfg.Templates["zh"]
+	}
+	tmpl := localeTemplates.AutoReply
+	if tmpl.Subject == "" && tmpl.Body == "" {
+		slog.Warn("no auto-reply template found", "locale", locale)
+		return nil
+	}
+
+	subject := s.renderTemplate(tmpl.Subject, submission)
+	body := s.renderTemplate(tmpl.Body, submission)
+
+	return s.sendMail(&cfg.SMTP, submission.Email, "", subject, body)
+}
+
+// SendForward sends the form submission to all configured receivers, with Reply-To set to the submitter's email.
+func (s *EmailService) SendForward(ctx context.Context, submission *model.FormSubmission, cfg *EmailConfig) error {
+	if !cfg.SMTP.IsConfigured() {
+		return fmt.Errorf("SMTP not configured")
+	}
+	if len(cfg.Receivers.To) == 0 {
+		return nil
+	}
+
+	locale := submission.Locale
+	if locale == "" {
+		locale = "zh"
+	}
+
+	localeTemplates, ok := cfg.Templates[locale]
+	if !ok {
+		localeTemplates = cfg.Templates["zh"]
+	}
+	tmpl := localeTemplates.Forward
+	if tmpl.Subject == "" && tmpl.Body == "" {
+		slog.Warn("no forward template found", "locale", locale)
+		return nil
+	}
+
+	subject := s.renderTemplate(tmpl.Subject, submission)
+	body := s.renderTemplate(tmpl.Body, submission)
+
+	var lastErr error
+	for _, recipient := range cfg.Receivers.To {
+		if err := s.sendMail(&cfg.SMTP, recipient, submission.Email, subject, body); err != nil {
+			slog.Error("failed to forward email", "to", recipient, "error", err)
+			lastErr = err
+		}
+	}
+	return lastErr
+}
+
+// SendTest sends a test email to verify SMTP configuration.
+func (s *EmailService) SendTest(ctx context.Context, to string, cfg *EmailConfig) error {
+	if !cfg.SMTP.IsConfigured() {
+		return fmt.Errorf("SMTP not configured")
+	}
+
+	subject := "Impress CMS - Email Test / 邮件测试"
+	body := `<html><body>
+<h2>Email Configuration Test / 邮件配置测试</h2>
+<p>If you receive this email, your SMTP settings are working correctly.</p>
+<p>如果您收到此邮件，说明 SMTP 配置正确。</p>
+</body></html>`
+
+	return s.sendMail(&cfg.SMTP, to, "", subject, body)
 }

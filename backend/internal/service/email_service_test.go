@@ -165,3 +165,38 @@ func TestSMTPConfig_IsConfigured(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildHTMLMessage_WithReplyToAndFromName(t *testing.T) {
+	msg := buildHTMLMessage(
+		"noreply@example.com",
+		"Impress CMS",
+		"user@example.com",
+		"reply@example.com",
+		"Test Subject",
+		"<html><body>Hello</body></html>",
+	)
+
+	msgStr := string(msg)
+	assert.Contains(t, msgStr, "From: Impress CMS <noreply@example.com>\r\n")
+	assert.Contains(t, msgStr, "To: user@example.com\r\n")
+	assert.Contains(t, msgStr, "Reply-To: reply@example.com\r\n")
+	assert.Contains(t, msgStr, "Subject: Test Subject\r\n")
+	assert.Contains(t, msgStr, "Content-Type: text/html; charset=UTF-8\r\n")
+	assert.Contains(t, msgStr, "<html><body>Hello</body></html>")
+}
+
+func TestBuildHTMLMessage_WithoutReplyToOrFromName(t *testing.T) {
+	msg := buildHTMLMessage(
+		"noreply@example.com",
+		"",
+		"user@example.com",
+		"",
+		"Test Subject",
+		"<html><body>Hello</body></html>",
+	)
+
+	msgStr := string(msg)
+	assert.Contains(t, msgStr, "From: noreply@example.com\r\n")
+	assert.NotContains(t, msgStr, "Reply-To:")
+	assert.Contains(t, msgStr, "Content-Type: text/html; charset=UTF-8\r\n")
+}
