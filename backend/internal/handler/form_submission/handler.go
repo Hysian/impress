@@ -1,23 +1,28 @@
 package form_submission
 
 import (
+	"context"
+	"log/slog"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"blotting-consultancy/internal/model"
 	"blotting-consultancy/internal/repository"
+	"blotting-consultancy/internal/service"
 )
 
 // Handler handles form submission HTTP requests
 type Handler struct {
-	repo repository.FormSubmissionRepository
+	repo         repository.FormSubmissionRepository
+	emailService *service.EmailService
 }
 
 // NewHandler creates a new form submission handler
-func NewHandler(repo repository.FormSubmissionRepository) *Handler {
-	return &Handler{repo: repo}
+func NewHandler(repo repository.FormSubmissionRepository, emailService *service.EmailService) *Handler {
+	return &Handler{repo: repo, emailService: emailService}
 }
 
 // --- Public endpoint ---
@@ -72,6 +77,27 @@ func (h *Handler) HandlePublicSubmit(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, submission)
+
+	// Send emails asynchronously after responding to the client
+	if h.emailService != nil {
+		go func(sub *model.FormSubmission) {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+
+			cfg := h.emailService.LoadConfig(ctx)
+			if cfg == nil {
+				return
+			}
+
+			if err := h.emailService.SendForward(ctx, sub, cfg); err != nil {
+				slog.Error("failed to send forward email", "error", err, "submissionId", sub.ID)
+			}
+
+			if err := h.emailService.SendAutoReply(ctx, sub, cfg); err != nil {
+				slog.Error("failed to send auto-reply email", "error", err, "submissionId", sub.ID)
+			}
+		}(submission)
+	}
 }
 
 // --- Admin endpoints ---
