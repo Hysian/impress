@@ -26,6 +26,7 @@ const AdminWizardPage = lazy(() => import('../pages/admin/wizard/page'));
 const AdminRolesPage = lazy(() => import('../pages/admin/roles/page'));
 const AdminSitesPage = lazy(() => import('../pages/admin/sites/page'));
 const AdminStoragePage = lazy(() => import('../pages/admin/storage/page'));
+const AdminEmailSettingsPage = lazy(() => import('../pages/admin/email-settings/page'));
 const AdminCommentsPage = lazy(() => import('../pages/admin/comments/page'));
 const NotFound = lazy(() => import('../pages/NotFound'));
 
@@ -174,6 +175,10 @@ export const staticRoutes: RouteObject[] = [
       {
         path: 'storage',
         element: <AdminStoragePage />,
+      },
+      {
+        path: 'email-settings',
+        element: <AdminEmailSettingsPage />,
       },
     ],
   },
