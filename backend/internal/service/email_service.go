@@ -19,10 +19,10 @@ import (
 
 // EmailConfig is the top-level email configuration stored in SiteConfig key "email".
 type EmailConfig struct {
-	SMTP      SMTPConfig                `json:"smtp"`
-	Receivers ReceiverConfig            `json:"receivers"`
-	AutoReply AutoReplyConfig           `json:"autoReply"`
-	Templates map[string]TemplatesConfig `json:"templates"`
+	SMTP      SMTPConfig      `json:"smtp"`
+	Receiver  ReceiverConfig  `json:"receiver"`
+	AutoReply AutoReplyConfig `json:"autoReply"`
+	Templates TemplatesConfig `json:"templates"`
 }
 
 // SMTPConfig holds SMTP server settings.
@@ -31,7 +31,7 @@ type SMTPConfig struct {
 	Port               int    `json:"port"`
 	Username           string `json:"username"`
 	Password           string `json:"password"`
-	FromAddress        string `json:"fromAddress"`
+	From               string `json:"from"`
 	FromName           string `json:"fromName"`
 	UseTLS             bool   `json:"useTLS"`
 	InsecureSkipVerify bool   `json:"insecureSkipVerify"`
@@ -39,12 +39,13 @@ type SMTPConfig struct {
 
 // IsConfigured returns true when the minimum SMTP fields are present.
 func (s *SMTPConfig) IsConfigured() bool {
-	return s.Host != "" && s.Port > 0 && s.Username != "" && s.Password != "" && s.FromAddress != ""
+	return s.Host != "" && s.Port > 0 && s.From != ""
 }
 
-// ReceiverConfig lists forwarding recipients.
+// ReceiverConfig controls forwarding to admin inbox.
 type ReceiverConfig struct {
-	To []string `json:"to"`
+	Enabled bool   `json:"enabled"`
+	Email   string `json:"email"`
 }
 
 // AutoReplyConfig controls the auto-reply feature.
@@ -52,10 +53,10 @@ type AutoReplyConfig struct {
 	Enabled bool `json:"enabled"`
 }
 
-// TemplatesConfig groups templates by purpose for a single locale.
+// TemplatesConfig groups templates by type, each with locale variants.
 type TemplatesConfig struct {
-	Forward   EmailTemplate `json:"forward"`
-	AutoReply EmailTemplate `json:"autoReply"`
+	AutoReply map[string]EmailTemplate `json:"autoReply"`
+	Forward   map[string]EmailTemplate `json:"forward"`
 }
 
 // EmailTemplate holds the subject and HTML body template.
@@ -159,7 +160,7 @@ func buildHTMLMessage(from, fromName, to, replyTo, subject, body string) []byte 
 
 // sendMail dispatches the message via TLS or STARTTLS based on configuration.
 func (s *EmailService) sendMail(cfg *SMTPConfig, to, replyTo, subject, htmlBody string) error {
-	msg := buildHTMLMessage(cfg.FromAddress, cfg.FromName, to, replyTo, subject, htmlBody)
+	msg := buildHTMLMessage(cfg.From, cfg.FromName, to, replyTo, subject, htmlBody)
 	if cfg.UseTLS {
 		return s.sendTLS(cfg, to, msg)
 	}
@@ -195,7 +196,7 @@ func (s *EmailService) sendSTARTTLS(cfg *SMTPConfig, to string, msg []byte) erro
 		return fmt.Errorf("auth: %w", err)
 	}
 
-	if err := client.Mail(cfg.FromAddress); err != nil {
+	if err := client.Mail(cfg.From); err != nil {
 		return fmt.Errorf("mail from: %w", err)
 	}
 	if err := client.Rcpt(to); err != nil {
@@ -241,7 +242,7 @@ func (s *EmailService) sendTLS(cfg *SMTPConfig, to string, msg []byte) error {
 		return fmt.Errorf("auth: %w", err)
 	}
 
-	if err := client.Mail(cfg.FromAddress); err != nil {
+	if err := client.Mail(cfg.From); err != nil {
 		return fmt.Errorf("mail from: %w", err)
 	}
 	if err := client.Rcpt(to); err != nil {
@@ -269,70 +270,34 @@ func (s *EmailService) SendAutoReply(ctx context.Context, submission *model.Form
 	if !cfg.AutoReply.Enabled {
 		return nil
 	}
-	if !cfg.SMTP.IsConfigured() {
-		return fmt.Errorf("SMTP not configured")
-	}
 	if submission.Email == "" {
 		return nil
 	}
 
-	locale := submission.Locale
-	if locale == "" {
-		locale = "zh"
-	}
-
-	// Get auto-reply templates for locale
-	localeTemplates, ok := cfg.Templates[locale]
-	if !ok {
-		localeTemplates = cfg.Templates["zh"]
-	}
-	tmpl := localeTemplates.AutoReply
+	tmpl := s.getTemplate(cfg.Templates.AutoReply, submission.Locale)
 	if tmpl.Subject == "" && tmpl.Body == "" {
-		slog.Warn("no auto-reply template found", "locale", locale)
 		return nil
 	}
 
 	subject := s.renderTemplate(tmpl.Subject, submission)
 	body := s.renderTemplate(tmpl.Body, submission)
-
 	return s.sendMail(&cfg.SMTP, submission.Email, "", subject, body)
 }
 
-// SendForward sends the form submission to all configured receivers, with Reply-To set to the submitter's email.
+// SendForward sends the form submission to the configured receiver, with Reply-To set to the submitter's email.
 func (s *EmailService) SendForward(ctx context.Context, submission *model.FormSubmission, cfg *EmailConfig) error {
-	if !cfg.SMTP.IsConfigured() {
-		return fmt.Errorf("SMTP not configured")
-	}
-	if len(cfg.Receivers.To) == 0 {
+	if !cfg.Receiver.Enabled || cfg.Receiver.Email == "" {
 		return nil
 	}
 
-	locale := submission.Locale
-	if locale == "" {
-		locale = "zh"
-	}
-
-	localeTemplates, ok := cfg.Templates[locale]
-	if !ok {
-		localeTemplates = cfg.Templates["zh"]
-	}
-	tmpl := localeTemplates.Forward
+	tmpl := s.getTemplate(cfg.Templates.Forward, submission.Locale)
 	if tmpl.Subject == "" && tmpl.Body == "" {
-		slog.Warn("no forward template found", "locale", locale)
 		return nil
 	}
 
 	subject := s.renderTemplate(tmpl.Subject, submission)
 	body := s.renderTemplate(tmpl.Body, submission)
-
-	var lastErr error
-	for _, recipient := range cfg.Receivers.To {
-		if err := s.sendMail(&cfg.SMTP, recipient, submission.Email, subject, body); err != nil {
-			slog.Error("failed to forward email", "to", recipient, "error", err)
-			lastErr = err
-		}
-	}
-	return lastErr
+	return s.sendMail(&cfg.SMTP, cfg.Receiver.Email, submission.Email, subject, body)
 }
 
 // SendTest sends a test email to verify SMTP configuration.
