@@ -278,10 +278,10 @@ func ConvertSectionsToContentDoc(pageKey string, config model.JSONMap) model.JSO
 		for i, m := range mappings {
 			if m.SectionType == sType && !ordered[i].matched {
 				ordered[i].matched = true
-				if props, ok := sMap["props"].(map[string]interface{}); ok {
-					result[m.ConfigKey] = props
-				} else if data, ok := sMap["data"].(map[string]interface{}); ok {
+				if data, ok := sMap["data"].(map[string]interface{}); ok {
 					result[m.ConfigKey] = data
+				} else if props, ok := sMap["props"].(map[string]interface{}); ok {
+					result[m.ConfigKey] = props
 				}
 				break
 			}
