@@ -356,7 +356,7 @@ func main() {
 	// (old pageHandlerInst removed — replaced by unified page handler)
 	themeHandlerInst := themeHandler.NewHandler(siteConfigRepo)
 	installedThemeHandlerInst := installedThemeHandler.NewHandler(installedThemeRepo, themePageService)
-	bootstrapHandlerInst := bootstrapHandler.NewHandler(contentDocRepo, installedThemeRepo, pageRepo)
+	bootstrapHandlerInst := bootstrapHandler.NewHandler(contentDocRepo, installedThemeRepo, pageRepo, siteConfigRepo)
 	emailSvc := service.NewEmailService(siteConfigRepo)
 	formSubmissionHandlerInst := formSubmissionHandler.NewHandler(formSubmissionRepo, emailSvc)
 	emailSettingsHandlerInst := emailSettingsHandler.NewHandler(siteConfigRepo, emailSvc)

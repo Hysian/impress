@@ -15,6 +15,7 @@ type Handler struct {
 	contentDocRepo repository.ContentDocumentRepository
 	themeRepo      repository.InstalledThemeRepository
 	pageRepo       repository.PageRepository
+	siteCfgRepo    repository.SiteConfigRepository
 }
 
 // NewHandler creates a new bootstrap handler
@@ -22,11 +23,13 @@ func NewHandler(
 	contentDocRepo repository.ContentDocumentRepository,
 	themeRepo repository.InstalledThemeRepository,
 	pageRepo repository.PageRepository,
+	siteCfgRepo repository.SiteConfigRepository,
 ) *Handler {
 	return &Handler{
 		contentDocRepo: contentDocRepo,
 		themeRepo:      themeRepo,
 		pageRepo:       pageRepo,
+		siteCfgRepo:    siteCfgRepo,
 	}
 }
 
@@ -133,7 +136,16 @@ func (h *Handler) PublicBootstrap(c *gin.Context) {
 		}
 	}
 
-	// 5. Page content (optional, only if pageKey is provided)
+	// 5. Features config
+	var features interface{}
+	featuresCfg, err := h.siteCfgRepo.FindByKey(ctx, model.SiteConfigKeyFeatures)
+	if err != nil || featuresCfg.PublishedConfig == nil {
+		features = gin.H{}
+	} else {
+		features = featuresCfg.PublishedConfig
+	}
+
+	// 6. Page content (optional, only if pageKey is provided)
 	var pageContent interface{}
 	if pageKey != "" {
 		pk := model.PageKey(pageKey)
@@ -155,6 +167,7 @@ func (h *Handler) PublicBootstrap(c *gin.Context) {
 		"themeTokens":  themeTokens,
 		"themePages":   themePages,
 		"globalConfig": globalConfig,
+		"features":     features,
 	}
 
 	if pageContent != nil {
