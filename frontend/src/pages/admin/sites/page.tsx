@@ -10,6 +10,7 @@ import {
   type CreateSiteRequest,
   type UpdateSiteRequest,
 } from "@/api/sites";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 interface SiteFormData {
   name: string;
@@ -46,6 +47,7 @@ const STATUSES = [
 ];
 
 export default function AdminSitesPage() {
+  useDocumentTitle("站点管理", "印迹后台");
   const [sites, setSites] = useState<SiteDTO[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);

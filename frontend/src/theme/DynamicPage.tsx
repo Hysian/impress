@@ -5,6 +5,7 @@ import { http } from "@/api/http";
 import type { Locale } from "@/api/publicContent";
 import type { PageConfig } from "./types";
 import { SectionRenderer } from "./sections";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 interface DynamicPageProps {
   slug?: string;
@@ -19,6 +20,8 @@ export default function DynamicPage({ slug: slugProp }: DynamicPageProps = {}) {
   const [config, setConfig] = useState<PageConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [title, setTitle] = useState<string>("");
+  useDocumentTitle(title, "印迹法规咨询");
 
   useEffect(() => {
     if (!slug) {
@@ -42,6 +45,7 @@ export default function DynamicPage({ slug: slugProp }: DynamicPageProps = {}) {
           }));
         }
         setConfig(raw);
+        setTitle(res.data.title || res.data.metaTitle || "");
         setLoading(false);
       })
       .catch((e) => {

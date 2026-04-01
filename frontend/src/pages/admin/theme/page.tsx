@@ -6,6 +6,7 @@ import { defaultTokens, type ThemeTokens } from "@/theme";
 import { useThemeManager } from "@/plugins/hooks";
 import ThemeManagementModal from "./ThemeManagementModal";
 import ThemeSettingsForm from "./ThemeSettingsForm";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 type TabId = "customize" | "presets" | "settings";
 
@@ -28,6 +29,7 @@ const colorFields: ColorField[] = [
 ];
 
 export default function AdminThemePage() {
+  useDocumentTitle("主题管理", "印迹后台");
   const [activeTab, setActiveTab] = useState<TabId>("customize");
   const [showThemeModal, setShowThemeModal] = useState(false);
   const { activeTheme } = useThemeManager();

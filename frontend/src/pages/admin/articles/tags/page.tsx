@@ -3,8 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { getTags, createTag, updateTag, deleteTag } from "@/api/articles";
 import type { Tag } from "@/api/articles";
 import MetadataEditor from "@/components/admin/MetadataEditor";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function TagsPage() {
+  useDocumentTitle("标签管理", "印迹后台");
   const navigate = useNavigate();
 
   const [tags, setTags] = useState<Tag[]>([]);

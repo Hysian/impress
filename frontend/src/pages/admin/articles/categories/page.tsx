@@ -8,6 +8,7 @@ import {
 } from "@/api/articles";
 import type { Category } from "@/api/articles";
 import MetadataEditor from "@/components/admin/MetadataEditor";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 // Flatten tree into a list with depth info for rendering
 function flattenTree(cats: Category[], depth = 0): { cat: Category; depth: number }[] {
@@ -34,6 +35,7 @@ function flattenAll(cats: Category[]): Category[] {
 }
 
 export default function CategoriesPage() {
+  useDocumentTitle("分类管理", "印迹后台");
   const navigate = useNavigate();
 
   const [categories, setCategories] = useState<Category[]>([]);

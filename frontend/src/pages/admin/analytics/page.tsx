@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { getAnalyticsSummary, type AnalyticsSummary } from "@/api/analytics";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 const PAGE_KEY_LABELS: Record<string, string> = {
   home: "首页",
@@ -13,6 +14,7 @@ const PAGE_KEY_LABELS: Record<string, string> = {
 };
 
 export default function AdminAnalyticsPage() {
+  useDocumentTitle("访问统计", "印迹后台");
   const [data, setData] = useState<AnalyticsSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

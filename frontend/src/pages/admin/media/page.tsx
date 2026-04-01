@@ -3,8 +3,10 @@ import { listMedia, deleteMedia, uploadMedia, getMediaUsages, renameMedia } from
 import type { MediaItem, MediaUsage } from "@/api/media";
 import ImageCropUpload from "@/components/admin/ImageCropUpload";
 import RecropModal from "@/components/admin/RecropModal";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function MediaPage() {
+  useDocumentTitle("媒体管理", "印迹后台");
   const [items, setItems] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

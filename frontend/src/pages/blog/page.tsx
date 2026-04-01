@@ -4,8 +4,10 @@ import { getPublicArticles } from "@/api/articles";
 import type { Article } from "@/api/articles";
 import { PublicLayout } from "@/theme/layouts";
 import PageHero from "@/components/feature/PageHero";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function BlogPage() {
+  useDocumentTitle("博客", "印迹法规咨询");
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 

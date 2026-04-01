@@ -6,6 +6,7 @@ import {
   type StorageConfig,
   type UpdateStorageConfigRequest,
 } from "@/api/storage";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 type Strategy = "local" | "s3" | "oss";
 
@@ -36,6 +37,7 @@ const STRATEGIES = [
 ];
 
 export default function AdminStoragePage() {
+  useDocumentTitle("存储配置", "印迹后台");
   const [config, setConfig] = useState<StorageConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");

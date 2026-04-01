@@ -17,6 +17,7 @@ import type { Category, Tag, Article } from "@/api/articles";
 import { listUnifiedPages } from "@/api/unifiedPages";
 import type { UnifiedPageItem } from "@/api/unifiedPages";
 import MetadataEditor from "@/components/admin/MetadataEditor";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 // ── Tree utilities ──
 
@@ -422,6 +423,7 @@ function TreeItemRow({
 // ── Main component ──
 
 export default function MenusPage() {
+  useDocumentTitle("菜单管理", "印迹后台");
   // -- Group state --
   const [groups, setGroups] = useState<MenuGroup[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);

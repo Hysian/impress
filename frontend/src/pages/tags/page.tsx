@@ -5,8 +5,10 @@ import { getPublicTags } from "@/api/articles";
 import type { Tag } from "@/api/articles";
 import { PublicLayout } from "@/theme/layouts";
 import PageHero from "@/components/feature/PageHero";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function TagsPage() {
+  useDocumentTitle("标签", "印迹法规咨询");
   const { t } = useTranslation();
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);

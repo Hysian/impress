@@ -5,6 +5,7 @@ import { usePublicContent } from '@/hooks/usePublicContent';
 import { useFormSubmit } from '@/hooks/useFormSubmit';
 import type { Locale } from '@/api/publicContent';
 import { PublicLayout } from '@/theme/layouts';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 interface HeroConfig {
   title?: string;
@@ -37,6 +38,7 @@ interface ContactPageConfig {
 }
 
 export default function ContactPage() {
+  useDocumentTitle("联系我们", "印迹法规咨询");
   const { i18n } = useTranslation('common');
   const locale = (i18n.language === 'zh' || i18n.language.startsWith('zh') ? 'zh' : 'en') as Locale;
 

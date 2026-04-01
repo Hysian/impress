@@ -6,6 +6,7 @@ import {
   type QALog,
   type QALogsResponse,
 } from "../api";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 const PAGE_SIZE = 20;
 
@@ -37,6 +38,7 @@ function RatingBadge({ rating }: { rating: string }) {
 }
 
 export default function AdminQAPage() {
+  useDocumentTitle("知识问答", "印迹后台");
   const [data, setData] = useState<QALogsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

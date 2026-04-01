@@ -10,6 +10,7 @@ import {
   type CreateRoleRequest,
   type UpdateRoleRequest,
 } from "@/api/roles";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 interface RoleFormData {
   name: string;
@@ -26,6 +27,7 @@ const emptyForm: RoleFormData = {
 };
 
 export default function AdminRolesPage() {
+  useDocumentTitle("角色管理", "印迹后台");
   const [roles, setRoles] = useState<RoleDTO[]>([]);
   const [permissions, setPermissions] = useState<PermissionDTO[]>([]);
   const [loading, setLoading] = useState(true);

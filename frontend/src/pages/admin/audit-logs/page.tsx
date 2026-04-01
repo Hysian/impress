@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { getAuditLogs, type AuditEvent, type AuditLogListResponse, type AuditLogFilters } from "@/api/auditLogs";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 const ACTION_OPTIONS = [
   { value: "", label: "全部操作" },
@@ -37,6 +38,7 @@ function formatDetailsSummary(details: string): string {
 }
 
 export default function AdminAuditLogsPage() {
+  useDocumentTitle("审计日志", "印迹后台");
   const [data, setData] = useState<AuditLogListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useSearch } from "@/hooks/useSearch";
 import SearchBox from "@/components/feature/SearchBox";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 /** Sanitize FTS5 snippet: escape all HTML except <mark> tags */
 function sanitizeSnippet(html: string): string {
@@ -19,6 +20,7 @@ function sanitizeSnippet(html: string): string {
 }
 
 export default function SearchPage() {
+  useDocumentTitle("搜索", "印迹法规咨询");
   const [searchParams] = useSearchParams();
   const query = searchParams.get("q") ?? "";
   const page = Number(searchParams.get("page") ?? "1");

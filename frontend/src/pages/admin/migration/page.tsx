@@ -7,6 +7,7 @@ import {
   type MigrationFormat,
   type MigrationJobPhase,
 } from "@/api/migration";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 const formatOptions: { value: MigrationFormat; label: string; description: string }[] = [
   {
@@ -422,6 +423,7 @@ function JobsTable() {
 
 // ---- Main Page ----
 export default function AdminMigrationPage() {
+  useDocumentTitle("数据迁移", "印迹后台");
   const [refreshKey, setRefreshKey] = useState(0);
 
   const handleJobCreated = () => {

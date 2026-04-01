@@ -25,8 +25,10 @@ import EditorModeSwitcher from "@/components/admin/editor/EditorModeSwitcher";
 import MarkdownMode from "@/components/admin/editor/MarkdownMode";
 import TurndownService from "turndown";
 import { marked } from "marked";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function ArticleEditorPage() {
+  useDocumentTitle("编辑文章", "印迹后台");
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const isEditing = !!id;
@@ -240,6 +242,7 @@ export default function ArticleEditorPage() {
   };
 
   const handleSave = async (status: "draft" | "published") => {
+    if (!zhTitle.trim()) { setError("请填写中文标题"); return; }
     if (!slug.trim()) { setError("请填写 Slug"); return; }
     setSaving(true);
     setError(null);
@@ -248,8 +251,9 @@ export default function ArticleEditorPage() {
       if (isEditing) await updateArticle(Number(id), payload as Partial<Article>);
       else await createArticle(payload as Partial<Article>);
       navigate("/admin/articles");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "保存失败");
+    } catch (err: any) {
+      const msg = err?.response?.data?.error?.message;
+      setError(msg || (err instanceof Error ? err.message : "保存失败"));
     } finally {
       setSaving(false);
     }

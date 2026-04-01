@@ -5,8 +5,10 @@ import { getPublicCategories } from "@/api/articles";
 import type { Category } from "@/api/articles";
 import { PublicLayout } from "@/theme/layouts";
 import PageHero from "@/components/feature/PageHero";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function CategoriesPage() {
+  useDocumentTitle("分类", "印迹法规咨询");
   const { t } = useTranslation();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);

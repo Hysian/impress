@@ -3,6 +3,7 @@ import { PublicLayout } from '@/theme/layouts';
 import PageHero from '@/components/feature/PageHero';
 import { usePublicContent } from '@/hooks/usePublicContent';
 import type { Locale } from '@/api/publicContent';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 interface MediaRef {
   url?: string;
@@ -34,6 +35,7 @@ interface AboutPageConfig {
 }
 
 export default function AboutPage() {
+  useDocumentTitle("关于我们", "印迹法规咨询");
   const { i18n } = useTranslation('common');
   const locale = (i18n.language === 'zh' || i18n.language.startsWith('zh') ? 'zh' : 'en') as Locale;
 

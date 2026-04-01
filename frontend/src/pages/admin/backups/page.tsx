@@ -10,6 +10,7 @@ import {
   type ExportRecord,
   type ValidationResult,
 } from "@/api/backups";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -387,6 +388,7 @@ function SiteImportTab() {
 
 // ---- Main Page ----
 export default function AdminBackupsPage() {
+  useDocumentTitle("数据备份", "印迹后台");
   const [activeTab, setActiveTab] = useState<TabKey>("db");
 
   return (

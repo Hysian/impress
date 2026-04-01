@@ -7,6 +7,7 @@ import {
   deleteFormSubmission,
 } from "@/api/formSubmissions";
 import type { FormSubmission, FormSubmissionListResponse } from "@/api/formSubmissions";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 type StatusFilter = "" | "unread" | "read" | "archived";
 
@@ -26,6 +27,7 @@ const STATUS_BADGE: Record<string, { label: string; className: string }> = {
 const PAGE_SIZE = 20;
 
 export default function AdminFormSubmissionsPage() {
+  useDocumentTitle("表单提交", "印迹后台");
   const [data, setData] = useState<FormSubmissionListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

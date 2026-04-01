@@ -4,6 +4,7 @@ import type { EmailConfig } from "./types";
 import { defaultEmailConfig } from "./defaults";
 import SmtpConfigTab from "./SmtpConfigTab";
 import TemplateEditorTab from "./TemplateEditorTab";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 type TabKey = "smtp" | "autoReply" | "forward";
 
@@ -37,6 +38,7 @@ function deepMerge(defaults: EmailConfig, loaded: Partial<EmailConfig>): EmailCo
 }
 
 export default function AdminEmailSettingsPage() {
+  useDocumentTitle("邮箱设置", "印迹后台");
   const [config, setConfig] = useState<EmailConfig>(defaultEmailConfig);
   const [activeTab, setActiveTab] = useState<TabKey>("smtp");
   const [loading, setLoading] = useState(true);

@@ -7,6 +7,7 @@ import {
   type GlossaryTerm,
   type GlossaryListResponse,
 } from "@/api/translation";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 const LANG_OPTIONS = [
   { value: "zh", label: "中文" },
@@ -356,6 +357,7 @@ function GlossaryManagement() {
 
 // ---- Main Page ----
 export default function AdminTranslationPage() {
+  useDocumentTitle("翻译管理", "印迹后台");
   return (
     <div>
       <h2 className="text-2xl font-bold text-gray-900 mb-6">翻译管理</h2>

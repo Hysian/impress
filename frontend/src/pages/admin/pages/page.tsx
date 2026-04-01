@@ -5,8 +5,10 @@ import {
   deleteUnifiedPage,
   type UnifiedPageItem,
 } from "@/api/unifiedPages";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function AdminPagesPage() {
+  useDocumentTitle("页面管理", "印迹后台");
   const [pages, setPages] = useState<UnifiedPageItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("");

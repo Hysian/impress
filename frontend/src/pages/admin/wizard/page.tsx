@@ -5,6 +5,7 @@ import {
   type WizardPlan,
   type WizardPlanRequest,
 } from "@/api/wizard";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 const INDUSTRY_OPTIONS = [
   { value: "technology", label: "科技 / IT" },
@@ -476,6 +477,7 @@ const DEFAULT_FORM: FormData = {
 };
 
 export default function AdminWizardPage() {
+  useDocumentTitle("建站向导", "印迹后台");
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<FormData>(DEFAULT_FORM);
   const [plan, setPlan] = useState<WizardPlan | null>(null);

@@ -4,6 +4,7 @@ import { getAnalyticsSummary } from "@/api/analytics";
 import { getAdminArticles } from "@/api/articles";
 import { listMedia } from "@/api/media";
 import { listUnifiedPages } from "@/api/unifiedPages";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 interface StatCard {
   label: string;
@@ -20,6 +21,7 @@ interface QuickAction {
 }
 
 export default function AdminDashboardPage() {
+  useDocumentTitle("仪表盘", "印迹后台");
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     todayVisits: 0,

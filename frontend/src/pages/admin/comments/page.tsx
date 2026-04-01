@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, Fragment } from "react";
 import { http } from "@/api/http";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 interface AdminComment {
   id: number;
@@ -14,7 +15,7 @@ interface AdminComment {
 }
 
 interface AdminCommentListResponse {
-  items: AdminComment[];
+  comments: AdminComment[];
   total: number;
   page: number;
   pageSize: number;
@@ -77,6 +78,7 @@ async function deleteComment(id: number): Promise<void> {
 }
 
 export default function AdminCommentsPage() {
+  useDocumentTitle("评论管理", "印迹后台");
   const [data, setData] = useState<AdminCommentListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -124,10 +126,10 @@ export default function AdminCommentsPage() {
 
   const handleSelectAll = () => {
     if (!data) return;
-    if (selectedIds.size === data.items.length) {
+    if (selectedIds.size === data.comments.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(data.items.map((item) => item.id)));
+      setSelectedIds(new Set(data.comments.map((item) => item.id)));
     }
   };
 
@@ -303,7 +305,7 @@ export default function AdminCommentsPage() {
                   <th className="px-4 py-3 text-left">
                     <input
                       type="checkbox"
-                      checked={data.items.length > 0 && selectedIds.size === data.items.length}
+                      checked={data.comments.length > 0 && selectedIds.size === data.comments.length}
                       onChange={handleSelectAll}
                       className="rounded border-gray-300"
                     />
@@ -329,7 +331,7 @@ export default function AdminCommentsPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {data.items.map((item: AdminComment) => {
+                {data.comments.map((item: AdminComment) => {
                   const badge = STATUS_BADGE[item.status] || { label: item.status, className: "bg-gray-100 text-gray-800" };
                   return (
                     <Fragment key={item.id}>
@@ -401,7 +403,7 @@ export default function AdminCommentsPage() {
                     </Fragment>
                   );
                 })}
-                {data.items.length === 0 && (
+                {data.comments.length === 0 && (
                   <tr>
                     <td colSpan={7} className="px-6 py-8 text-center text-sm text-gray-500">
                       暂无评论记录
