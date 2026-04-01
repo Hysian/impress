@@ -27,6 +27,7 @@ export interface BootstrapData {
   themePages: ThemePageItem[];
   globalConfig: GlobalConfigData;
   pageContent?: PageContentData;
+  features?: Record<string, { enabled?: boolean }>;
 }
 
 export async function fetchBootstrap(
