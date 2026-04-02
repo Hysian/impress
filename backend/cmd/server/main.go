@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 
@@ -20,7 +18,6 @@ import (
 
 	"blotting-consultancy/internal/backup"
 	"blotting-consultancy/internal/cache"
-	"blotting-consultancy/internal/seo"
 	"blotting-consultancy/internal/db"
 	"blotting-consultancy/internal/db/migrations"
 	_ "blotting-consultancy/docs/swagger" // swagger docs
@@ -34,9 +31,7 @@ import (
 	backupHandler "blotting-consultancy/internal/handler/backup"
 	categoryHandler "blotting-consultancy/internal/handler/category"
 	commentHandler "blotting-consultancy/internal/handler/comment"
-	// contentHandler removed — replaced by unified page handler
 	mediaHandler "blotting-consultancy/internal/handler/media"
-	// pageHandler removed — replaced by unified page handler
 	publicHandler "blotting-consultancy/internal/handler/public"
 	sitemapHandler "blotting-consultancy/internal/handler/sitemap"
 	tagHandler "blotting-consultancy/internal/handler/tag"
@@ -64,20 +59,16 @@ import (
 	pageTemplateHandler "blotting-consultancy/internal/handler/page_template"
 	themeExportHandler "blotting-consultancy/internal/handler/theme_export"
 	"blotting-consultancy/internal/migration"
-	"blotting-consultancy/internal/middleware"
 	"blotting-consultancy/internal/model"
 	"blotting-consultancy/internal/provider"
 	"blotting-consultancy/internal/repository"
 	"blotting-consultancy/internal/seed"
 	"blotting-consultancy/internal/service"
+	"blotting-consultancy/internal/seo"
 	"blotting-consultancy/pkg/apierror"
 	"blotting-consultancy/pkg/audit"
 	"blotting-consultancy/pkg/config"
 	appLogger "blotting-consultancy/pkg/logger"
-	"blotting-consultancy/pkg/metrics"
-
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 // Build-time variables (set via ldflags)
@@ -374,7 +365,6 @@ func main() {
 
 	// Initialize handlers
 	authHandlerInst := authHandler.NewHandler(userRepo, refreshTokenRepo, cfg)
-	// (old contentHandlerInst removed — replaced by unified page handler)
 	publicHandlerInst := publicHandler.NewHandler(contentDocRepo, pageViewRepo, unifiedPageRepo, publicCache)
 	mediaHandlerInst := mediaHandler.NewHandler(mediaRepo, cfg.UploadDir, "")
 	analyticsHandlerInst := analyticsHandler.NewHandler(pageViewRepo)
@@ -385,7 +375,6 @@ func main() {
 	backupHandlerInst := backupHandler.NewHandler(backupSvc)
 	auditlogHandlerInst := auditlogHandler.NewHandler(auditEventRepo)
 	sitemapHandlerInst := sitemapHandler.NewHandler(contentDocRepo, articleRepo, cfg.BaseURL)
-	// (old pageHandlerInst removed — replaced by unified page handler)
 	themeHandlerInst := themeHandler.NewHandler(siteConfigRepo)
 	installedThemeHandlerInst := installedThemeHandler.NewHandler(installedThemeRepo, themePageService)
 	bootstrapHandlerInst := bootstrapHandler.NewHandler(contentDocRepo, installedThemeRepo, pageRepo, siteConfigRepo, publicCache)
@@ -443,443 +432,51 @@ func main() {
 	router.Use(cors.New(corsConfig))
 	router.Use(apierror.ErrorHandler()) // API error handling
 
-	// Version endpoint (public, no auth required)
-	router.GET("/version", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"version":   Version,
-			"buildTime": BuildTime,
-			"gitCommit": GitCommit,
-			"gitBranch": GitBranch,
-		})
-	})
-
-	// Health endpoint (no auth required)
-	router.GET("/health", func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
-		defer cancel()
-
-		// Check database connection
-		if err := database.HealthCheck(ctx); err != nil {
-			c.JSON(503, gin.H{
-				"status": "unhealthy",
-				"error":  "database connection failed",
-			})
-			return
-		}
-
-		c.JSON(200, gin.H{
-			"status":    "healthy",
-			"timestamp": time.Now().UTC().Format(time.RFC3339),
-			"version":   Version,
-			"buildTime": BuildTime,
-			"gitCommit": GitCommit,
-		})
-	})
-
-	// Metrics endpoint (no auth required, for operations dashboards)
-	router.GET("/metrics", func(c *gin.Context) {
-		m := metrics.Global()
-		publishTotal, publishSuccess, publishFailure := m.GetPublishMetrics()
-		validationTotal, validationFailures := m.GetValidationMetrics()
-		rollbackTotal, rollbackSuccess, rollbackFailure, rollbackP95 := m.GetRollbackMetrics()
-		publicGetTotal, publicGetSuccess, publicGetFailure, publicGetP95 := m.GetPublicGetMetrics()
-
-		c.JSON(200, gin.H{
-			"publish": gin.H{
-				"total":   publishTotal,
-				"success": publishSuccess,
-				"failure": publishFailure,
-			},
-			"validation": gin.H{
-				"total":    validationTotal,
-				"failures": validationFailures,
-			},
-			"rollback": gin.H{
-				"total":       rollbackTotal,
-				"success":     rollbackSuccess,
-				"failure":     rollbackFailure,
-				"latency_p95": rollbackP95.Milliseconds(),
-			},
-			"public_get": gin.H{
-				"total":       publicGetTotal,
-				"success":     publicGetSuccess,
-				"failure":     publicGetFailure,
-				"latency_p95": publicGetP95.Milliseconds(),
-			},
-		})
-	})
-
-	// Swagger API documentation (no auth required)
-	router.GET("/api-docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-
-	// Sitemap (no auth required)
-	router.GET("/sitemap.xml", sitemapHandlerInst.GetSitemap)
-
-	// Robots.txt (no auth required)
-	router.GET("/robots.txt", seoHandlerInst.GetRobotsTxt)
-
-	// Public routes (no auth required)
-	publicGroup := router.Group("/public")
-	publicGroup.Use(middleware.PublicRateLimit())
-	{
-		publicGroup.GET("/bootstrap", bootstrapHandlerInst.PublicBootstrap)
-		publicGroup.GET("/content/:pageKey", publicHandlerInst.GetPublicContent)
-
-		// Public article routes
-		publicGroup.GET("/articles", articleHandlerInst.PublicList)
-		publicGroup.GET("/articles/:slug", articleHandlerInst.PublicGetBySlug)
-
-		// (old page routes removed — replaced by unified pages below)
-
-		// Public category routes
-		publicGroup.GET("/categories", categoryHandlerInst.PublicList)
-		publicGroup.GET("/categories/:slug", categoryHandlerInst.PublicGetBySlug)
-
-		// Public tag routes
-		publicGroup.GET("/tags", tagHandlerInst.PublicList)
-		publicGroup.GET("/tags/:slug", tagHandlerInst.PublicGetBySlug)
-
-		// Public menu route
-		publicGroup.GET("/menu", menuHandlerInst.PublicGetPrimary)
-
-		// Public theme route
-		publicGroup.GET("/theme", themeHandlerInst.PublicGet)
-
-		// Public active theme route
-		publicGroup.GET("/active-theme", installedThemeHandlerInst.PublicGetActive)
-
-		// (old theme-pages route removed — theme pages are now part of unified pages)
-
-		// Unified pages (replaces old page routes)
-		publicGroup.GET("/pages", unifiedPageHdl.PublicList)
-		publicGroup.GET("/pages/:slug", unifiedPageHdl.PublicGetBySlug)
+	// Register all routes
+	handlers := &Handlers{
+		Auth:           authHandlerInst,
+		Article:        articleHandlerInst,
+		Public:         publicHandlerInst,
+		Bootstrap:      bootstrapHandlerInst,
+		Media:          mediaHandlerInst,
+		Analytics:      analyticsHandlerInst,
+		Category:       categoryHandlerInst,
+		Tag:            tagHandlerInst,
+		Menu:           menuHandlerInst,
+		Backup:         backupHandlerInst,
+		AuditLog:       auditlogHandlerInst,
+		Sitemap:        sitemapHandlerInst,
+		Theme:          themeHandlerInst,
+		InstalledTheme: installedThemeHandlerInst,
+		FormSubmission: formSubmissionHandlerInst,
+		EmailSettings:  emailSettingsHandlerInst,
+		User:           userHandlerInst,
+		SEO:            seoHandlerInst,
+		Comment:        commentHandlerInst,
+		Search:         searchHandlerInst,
+		Role:           roleHandlerInst,
+		Marketplace:    marketplaceHandlerInst,
+		Wizard:         wizardHandlerInst,
+		AI:             aiHandlerInst,
+		ChunkedUpload:  chunkedUploadHandlerInst,
+		MediaFolder:    mediaFolderHandlerInst,
+		Migration:      migrationHandlerInst,
+		Site:           siteHandlerInst,
+		Storage:        storageHandlerInst,
+		System:         systemHandlerInst,
+		Translation:    translationHandlerInst,
+		UnifiedPage:    unifiedPageHdl,
+		PageTemplate:   pageTemplateHdl,
+		ThemeExport:    themeExportHdl,
 	}
-
-	// Form submission (public, with dedicated rate limit)
-	router.POST("/public/form-submissions", middleware.FormSubmitRateLimit(), formSubmissionHandlerInst.HandlePublicSubmit)
-
-	// Auth routes (no auth middleware, but handlers validate credentials)
-	authGroup := router.Group("/auth")
-	{
-		authGroup.POST("/login", middleware.LoginRateLimit(), authHandlerInst.Login)
-		authGroup.POST("/refresh", authHandlerInst.Refresh)
-		authGroup.POST("/logout", authHandlerInst.Logout)
-
-		// Protected auth routes
-		authProtected := authGroup.Group("")
-		authProtected.Use(middleware.Auth(cfg.JWTSecret))
-		{
-			authProtected.GET("/me", authHandlerInst.Me)
-		}
+	routeDeps := &RouteDeps{
+		UserRepo:  userRepo,
+		RBACCache: rbacCache,
+		Cfg:       cfg,
+		Database:  database,
+		ModuleMgr: mgr,
 	}
-
-	// Initialize SEO renderer when FRONTEND_DIR is configured
-	var seoRenderer *seo.Renderer
-	if cfg.FrontendDir != "" {
-		seoIndexPath := filepath.Join(cfg.FrontendDir, "index.html")
-		var err error
-		seoRenderer, err = seo.NewRenderer(seoIndexPath)
-		if err != nil {
-			log.Error("Failed to create SEO renderer", "error", err)
-			os.Exit(1)
-		}
-		log.Info("SEO renderer initialized")
-	}
-
-	// Admin routes (require authentication and authorization)
-	adminGroup := router.Group("/admin")
-	// SPA fallback: if FRONTEND_DIR is set and the browser asks for HTML,
-	// serve index.html instead of requiring auth (the SPA handles its own auth).
-	if cfg.FrontendDir != "" {
-		indexPath := filepath.Join(cfg.FrontendDir, "index.html")
-		adminGroup.Use(func(c *gin.Context) {
-			accept := c.GetHeader("Accept")
-			if c.Request.Method == "GET" && strings.Contains(accept, "text/html") {
-				if !serveSPAWithMeta(c, seoRenderer, cfg.BaseURL) {
-					c.File(indexPath)
-					c.Abort()
-				}
-				return
-			}
-			c.Next()
-		})
-	}
-	adminGroup.Use(middleware.Auth(cfg.JWTSecret))
-	// Legacy middleware kept for backward compatibility with existing JWT tokens.
-	// New RBAC permission checks are applied at the route-group level.
-	adminGroup.Use(middleware.RequireAdminOrEditor())
-
-	// Register module routes
-	mgr.RegisterAllRoutes(publicGroup, adminGroup)
-
-	{
-		// (old content handler routes removed — replaced by unified page draft/publish/version routes)
-
-		// Media management
-		adminGroup.POST("/media/upload", mediaHandlerInst.Upload)
-		adminGroup.GET("/media", mediaHandlerInst.List)
-		adminGroup.DELETE("/media/:id", mediaHandlerInst.Delete)
-		adminGroup.PUT("/media/:id/crop", mediaHandlerInst.Recrop)
-		adminGroup.PUT("/media/:id", mediaHandlerInst.Rename)
-		adminGroup.GET("/media/:id/usages", mediaHandlerInst.GetUsages)
-
-		// Analytics (requires analytics:read via RBAC)
-		adminAnalytics := adminGroup.Group("")
-		adminAnalytics.Use(middleware.RequirePermission("analytics", "read", userRepo, rbacCache))
-		{
-			adminAnalytics.GET("/analytics/summary", analyticsHandlerInst.GetSummary)
-		}
-
-		// Article management
-		adminGroup.GET("/articles", articleHandlerInst.AdminList)
-		adminGroup.GET("/articles/:id", articleHandlerInst.AdminGetByID)
-		adminGroup.POST("/articles", articleHandlerInst.AdminCreate)
-		adminGroup.PUT("/articles/:id", articleHandlerInst.AdminUpdate)
-		adminGroup.DELETE("/articles/:id", articleHandlerInst.AdminDelete)
-		adminGroup.GET("/articles/:id/export", articleHandlerInst.AdminExportMarkdown)
-		adminGroup.POST("/articles/import", articleHandlerInst.AdminImportMarkdown)
-
-		// Category management
-		adminGroup.GET("/categories", categoryHandlerInst.List)
-		adminGroup.GET("/categories/tree", categoryHandlerInst.ListTree)
-		adminGroup.GET("/categories/:id", categoryHandlerInst.GetByID)
-		adminGroup.POST("/categories", categoryHandlerInst.Create)
-		adminGroup.PUT("/categories/:id", categoryHandlerInst.Update)
-		adminGroup.DELETE("/categories/:id", categoryHandlerInst.Delete)
-
-		// Tag management
-		adminGroup.GET("/tags", tagHandlerInst.List)
-		adminGroup.POST("/tags", tagHandlerInst.Create)
-		adminGroup.PUT("/tags/:id", tagHandlerInst.Update)
-		adminGroup.DELETE("/tags/:id", tagHandlerInst.Delete)
-
-		// Menu management
-		adminGroup.GET("/menus", menuHandlerInst.ListGroups)
-		adminGroup.POST("/menus", menuHandlerInst.CreateGroup)
-		adminGroup.GET("/menus/:id", menuHandlerInst.GetGroup)
-		adminGroup.PUT("/menus/:id", menuHandlerInst.UpdateGroup)
-		adminGroup.DELETE("/menus/:id", menuHandlerInst.DeleteGroup)
-		adminGroup.PUT("/menus/:id/primary", menuHandlerInst.SetPrimary)
-		adminGroup.POST("/menus/:id/items", menuHandlerInst.CreateItem)
-		adminGroup.PUT("/menus/:id/items/:itemId", menuHandlerInst.UpdateItem)
-		adminGroup.DELETE("/menus/:id/items/:itemId", menuHandlerInst.DeleteItem)
-		adminGroup.PUT("/menus/:id/items/reorder", menuHandlerInst.ReorderItems)
-
-		// Backup management
-		adminGroup.GET("/backups", backupHandlerInst.List)
-		adminGroup.POST("/backups/trigger", backupHandlerInst.Trigger)
-
-		// Site export/import (requires backups:manage via RBAC)
-		adminBackup := adminGroup.Group("/backups")
-		adminBackup.Use(middleware.RequirePermission("backups", "manage", userRepo, rbacCache))
-		{
-			adminBackup.POST("/export", backupHandlerInst.Export)
-			adminBackup.GET("/export/:filename", backupHandlerInst.DownloadExport)
-			adminBackup.POST("/import", backupHandlerInst.Import)
-			adminBackup.POST("/import/validate", backupHandlerInst.ValidateImport)
-		}
-
-		// Audit logs (requires audit_logs:read via RBAC)
-		adminAudit := adminGroup.Group("")
-		adminAudit.Use(middleware.RequirePermission("audit_logs", "read", userRepo, rbacCache))
-		{
-			adminAudit.GET("/audit-logs", auditlogHandlerInst.List)
-		}
-
-		// (old page management routes removed — replaced by unified page routes below)
-
-		// Theme token management (existing)
-		adminGroup.GET("/theme", themeHandlerInst.AdminGet)
-		adminGroup.PUT("/theme", themeHandlerInst.AdminUpdate)
-
-		// Installed theme management
-		adminGroup.GET("/themes", installedThemeHandlerInst.AdminList)
-		adminGroup.GET("/themes/:id", installedThemeHandlerInst.AdminGetByID)
-		adminGroup.POST("/themes", installedThemeHandlerInst.AdminCreate)
-		adminGroup.PUT("/themes/:id", installedThemeHandlerInst.AdminUpdate)
-		adminGroup.DELETE("/themes/:id", installedThemeHandlerInst.AdminDelete)
-		adminGroup.PUT("/themes/:id/activate", installedThemeHandlerInst.AdminActivate)
-
-		// Form submission management
-		adminGroup.GET("/form-submissions/counts", formSubmissionHandlerInst.HandleAdminCounts)
-		adminGroup.GET("/form-submissions", formSubmissionHandlerInst.HandleAdminList)
-		adminGroup.GET("/form-submissions/:id", formSubmissionHandlerInst.HandleAdminGetByID)
-		adminGroup.PATCH("/form-submissions/:id/status", formSubmissionHandlerInst.HandleAdminUpdateStatus)
-		adminGroup.POST("/form-submissions/bulk-status", formSubmissionHandlerInst.HandleAdminBulkUpdateStatus)
-		adminGroup.DELETE("/form-submissions/:id", formSubmissionHandlerInst.HandleAdminDelete)
-
-		// Email settings management
-		adminGroup.GET("/email-settings", emailSettingsHandlerInst.HandleGet)
-		adminGroup.PUT("/email-settings", emailSettingsHandlerInst.HandleUpdate)
-		adminGroup.POST("/email-settings/test", emailSettingsHandlerInst.HandleTest)
-
-		// User management (requires users:manage via RBAC)
-		adminUsers := adminGroup.Group("/users")
-		adminUsers.Use(middleware.RequirePermission("users", "manage", userRepo, rbacCache))
-		{
-			adminUsers.GET("", userHandlerInst.List)
-			adminUsers.GET("/:id", userHandlerInst.GetByID)
-			adminUsers.POST("", userHandlerInst.Create)
-			adminUsers.PUT("/:id", userHandlerInst.Update)
-			adminUsers.DELETE("/:id", userHandlerInst.Delete)
-		}
-
-		// RBAC Role management (requires roles:manage via RBAC)
-		adminRoles := adminGroup.Group("/roles")
-		adminRoles.Use(middleware.RequirePermission("roles", "manage", userRepo, rbacCache))
-		{
-			adminRoles.GET("", roleHandlerInst.List)
-			adminRoles.GET("/:id", roleHandlerInst.GetByID)
-			adminRoles.POST("", roleHandlerInst.Create)
-			adminRoles.PUT("/:id", roleHandlerInst.Update)
-			adminRoles.DELETE("/:id", roleHandlerInst.Delete)
-			adminRoles.POST("/assign", roleHandlerInst.AssignRole)
-			adminRoles.POST("/unassign", roleHandlerInst.UnassignRole)
-			adminRoles.GET("/user/:userId", roleHandlerInst.GetUserRoles)
-		}
-
-		// Permission listing (requires roles:read via RBAC)
-		adminGroup.GET("/permissions", roleHandlerInst.ListPermissions)
-
-		// AI Site Building Wizard
-		adminGroup.POST("/wizard/generate-plan", wizardHandlerInst.GeneratePlan)
-		adminGroup.POST("/wizard/apply-plan", wizardHandlerInst.ApplyPlan)
-		adminGroup.POST("/wizard/suggest-colors", wizardHandlerInst.SuggestColors)
-		adminGroup.POST("/wizard/generate-content", wizardHandlerInst.GenerateContent)
-
-		// Marketplace (plugin/theme registry)
-		adminGroup.GET("/marketplace/items", marketplaceHandlerInst.AdminListItems)
-		adminGroup.GET("/marketplace/installed", marketplaceHandlerInst.AdminListInstalled)
-		adminGroup.POST("/marketplace/items", marketplaceHandlerInst.AdminRegisterItem)
-		adminGroup.GET("/marketplace/items/:slug", marketplaceHandlerInst.AdminGetItem)
-		adminGroup.POST("/marketplace/items/:slug/install", marketplaceHandlerInst.AdminInstallItem)
-		adminGroup.PUT("/marketplace/items/:slug/update", marketplaceHandlerInst.AdminUpdateItem)
-		adminGroup.DELETE("/marketplace/items/:slug", marketplaceHandlerInst.AdminUninstallItem)
-		adminGroup.POST("/marketplace/items/:slug/versions", marketplaceHandlerInst.AdminAddVersion)
-
-		// AI provider management
-		adminGroup.POST("/ai/chat", aiHandlerInst.Chat)
-		adminGroup.POST("/ai/summarize", aiHandlerInst.Summarize)
-		adminGroup.POST("/ai/suggest-titles", aiHandlerInst.SuggestTitles)
-		adminGroup.POST("/ai/suggest-tags", aiHandlerInst.SuggestTags)
-		adminGroup.POST("/ai/complete", aiHandlerInst.Complete)
-		adminGroup.GET("/ai/config", aiHandlerInst.GetConfig)
-		adminGroup.PUT("/ai/config", aiHandlerInst.UpdateConfig)
-
-		// Chunked upload
-		adminGroup.POST("/media/upload/init", chunkedUploadHandlerInst.InitUpload)
-		adminGroup.POST("/media/upload/:uploadId/chunk", chunkedUploadHandlerInst.UploadChunk)
-		adminGroup.POST("/media/upload/:uploadId/complete", chunkedUploadHandlerInst.CompleteUpload)
-
-		// Media folders
-		adminGroup.GET("/media/folders", mediaFolderHandlerInst.ListTree)
-		adminGroup.POST("/media/folders", mediaFolderHandlerInst.Create)
-		adminGroup.PUT("/media/folders/:id", mediaFolderHandlerInst.Rename)
-		adminGroup.DELETE("/media/folders/:id", mediaFolderHandlerInst.Delete)
-		adminGroup.PUT("/media/:id/move", mediaFolderHandlerInst.MoveMedia)
-
-		// Data migration (import from WordPress, Halo, Markdown)
-		adminGroup.POST("/migration/import", migrationHandlerInst.Import)
-		adminGroup.GET("/migration/jobs", migrationHandlerInst.ListJobs)
-		adminGroup.GET("/migration/jobs/:jobId", migrationHandlerInst.GetJob)
-		adminGroup.GET("/migration/jobs/:jobId/stream", migrationHandlerInst.StreamProgress)
-
-		// Site management
-		adminGroup.GET("/sites", siteHandlerInst.AdminList)
-		adminGroup.GET("/sites/:id", siteHandlerInst.AdminGetByID)
-		adminGroup.POST("/sites", siteHandlerInst.AdminCreate)
-		adminGroup.PUT("/sites/:id", siteHandlerInst.AdminUpdate)
-		adminGroup.DELETE("/sites/:id", siteHandlerInst.AdminDelete)
-		adminGroup.GET("/sites/:id/users", siteHandlerInst.AdminListUsers)
-		adminGroup.POST("/sites/:id/users", siteHandlerInst.AdminAssignUser)
-		adminGroup.DELETE("/sites/:id/users/:userId", siteHandlerInst.AdminUnassignUser)
-		adminGroup.GET("/sites/:id/export", siteHandlerInst.AdminExport)
-		adminGroup.POST("/sites/import", siteHandlerInst.AdminImport)
-
-		// Storage configuration
-		adminGroup.GET("/storage/config", storageHandlerInst.GetConfig)
-		adminGroup.PUT("/storage/config", storageHandlerInst.UpdateConfig)
-		adminGroup.POST("/storage/test", storageHandlerInst.TestConnection)
-
-		// System status
-		adminGroup.GET("/system/status", systemHandlerInst.GetStatus)
-
-		// Translation & glossary
-		adminGroup.POST("/translate", translationHandlerInst.Translate)
-		adminGroup.POST("/translate/batch", translationHandlerInst.BatchTranslate)
-		adminGroup.POST("/translate/article/:id", translationHandlerInst.TranslateArticle)
-		adminGroup.GET("/glossary", translationHandlerInst.GlossaryList)
-		adminGroup.POST("/glossary", translationHandlerInst.GlossaryCreate)
-		adminGroup.PUT("/glossary/:id", translationHandlerInst.GlossaryUpdate)
-		adminGroup.DELETE("/glossary/:id", translationHandlerInst.GlossaryDelete)
-
-		// Page management (unified page system)
-		adminGroup.GET("/pages", unifiedPageHdl.AdminList)
-		adminGroup.GET("/pages/:id", unifiedPageHdl.AdminGetByID)
-		adminGroup.POST("/pages", unifiedPageHdl.AdminCreate)
-		adminGroup.GET("/pages/:id/draft", unifiedPageHdl.AdminGetDraft)
-		adminGroup.PUT("/pages/:id/draft", unifiedPageHdl.AdminUpdateDraft)
-		adminGroup.POST("/pages/:id/publish", unifiedPageHdl.AdminPublish)
-		adminGroup.POST("/pages/:id/unpublish", unifiedPageHdl.AdminUnpublish)
-		adminGroup.POST("/pages/:id/rollback", unifiedPageHdl.AdminRollback)
-		adminGroup.GET("/pages/:id/versions", unifiedPageHdl.AdminListVersions)
-		adminGroup.GET("/pages/:id/versions/:version", unifiedPageHdl.AdminGetVersionDetail)
-		adminGroup.DELETE("/pages/:id", unifiedPageHdl.AdminDelete)
-
-		// Page template management
-		adminGroup.GET("/templates", pageTemplateHdl.List)
-		adminGroup.POST("/templates", pageTemplateHdl.Create)
-		adminGroup.PUT("/templates/:id", pageTemplateHdl.Update)
-		adminGroup.DELETE("/templates/:id", pageTemplateHdl.Delete)
-		adminGroup.POST("/templates/:id/duplicate", pageTemplateHdl.Duplicate)
-
-		// Theme export/import
-		adminGroup.POST("/theme-packages/export", themeExportHdl.Export)
-		adminGroup.POST("/theme-packages/import", themeExportHdl.Import)
-		adminGroup.GET("/theme-packages", themeExportHdl.List)
-		adminGroup.PUT("/theme-packages/:id/apply", themeExportHdl.Apply)
-	}
-
-	// SEO routes (public + admin)
-	seoHandlerInst.RegisterRoutes(publicGroup, adminGroup)
-
-	// Comment routes (public + admin)
-	commentHandlerInst.RegisterRoutes(publicGroup, adminGroup)
-
-	// Search routes (public + admin)
-	searchHandlerInst.RegisterRoutes(publicGroup, adminGroup)
-
-	// Serve uploaded files statically
-	router.Static("/uploads", cfg.UploadDir)
-
-	// Serve frontend static assets when FRONTEND_DIR is configured
-	if cfg.FrontendDir != "" {
-		router.Static("/assets", filepath.Join(cfg.FrontendDir, "assets"))
-		router.Static("/images", filepath.Join(cfg.FrontendDir, "images"))
-		router.StaticFile("/favicon.ico", filepath.Join(cfg.FrontendDir, "favicon.ico"))
-
-		// SPA fallback: non-API GET requests return index.html with SEO meta
-		indexHTML := filepath.Join(cfg.FrontendDir, "index.html")
-		router.NoRoute(func(c *gin.Context) {
-			path := c.Request.URL.Path
-			if c.Request.Method == "GET" &&
-				!strings.HasPrefix(path, "/public/") &&
-				!strings.HasPrefix(path, "/auth/") &&
-				!strings.HasPrefix(path, "/uploads/") &&
-				path != "/health" &&
-				path != "/version" &&
-				path != "/metrics" &&
-				path != "/sitemap.xml" &&
-				path != "/robots.txt" {
-				if !serveSPAWithMeta(c, seoRenderer, cfg.BaseURL) {
-					http.ServeFile(c.Writer, c.Request, indexHTML)
-					c.Abort()
-				}
-				return
-			}
-			c.JSON(404, gin.H{"error": "not found"})
-		})
-	}
+	registerRoutes(router, handlers, routeDeps)
 
 	log.Info("Router configured with all routes")
 
