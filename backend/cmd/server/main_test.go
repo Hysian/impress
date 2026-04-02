@@ -21,6 +21,7 @@ import (
 	publicHandler "blotting-consultancy/internal/handler/public"
 	"blotting-consultancy/internal/middleware"
 	"blotting-consultancy/internal/model"
+	commentMod "blotting-consultancy/internal/modules/comment"
 	"blotting-consultancy/internal/repository"
 	"blotting-consultancy/pkg/apierror"
 	"blotting-consultancy/pkg/config"
@@ -49,7 +50,7 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *db.DB) {
 		&model.Article{},
 		&model.Category{},
 		&model.Tag{},
-		&model.Comment{},
+		&commentMod.Comment{},
 		&model.Media{},
 	)
 	require.NoError(t, err)

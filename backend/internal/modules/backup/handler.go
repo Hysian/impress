@@ -9,18 +9,11 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-
-	backupService "blotting-consultancy/internal/backup"
 )
 
 // Handler handles backup-related HTTP requests
 type Handler struct {
-	service *backupService.Service
-}
-
-// NewHandler creates a new backup handler
-func NewHandler(service *backupService.Service) *Handler {
-	return &Handler{service: service}
+	service *Service
 }
 
 // List returns all backup records.
@@ -177,7 +170,7 @@ func (h *Handler) ValidateImport(c *gin.Context) {
 		return
 	}
 
-	result, err := backupService.ValidateExportArchive(tmpPath)
+	result, err := ValidateExportArchive(tmpPath)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "验证失败: " + err.Error()}})
 		return

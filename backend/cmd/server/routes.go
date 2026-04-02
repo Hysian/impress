@@ -14,13 +14,10 @@ import (
 	articleHandler "blotting-consultancy/internal/handler/article"
 	auditlogHandler "blotting-consultancy/internal/handler/auditlog"
 	authHandler "blotting-consultancy/internal/handler/auth"
-	backupHandler "blotting-consultancy/internal/handler/backup"
 	bootstrapHandler "blotting-consultancy/internal/handler/bootstrap"
 	categoryHandler "blotting-consultancy/internal/handler/category"
 	chunkedUploadHandler "blotting-consultancy/internal/handler/chunked_upload"
-	commentHandler "blotting-consultancy/internal/handler/comment"
 	emailSettingsHandler "blotting-consultancy/internal/handler/email_settings"
-	formSubmissionHandler "blotting-consultancy/internal/handler/form_submission"
 	installedThemeHandler "blotting-consultancy/internal/handler/installed_theme"
 	marketplaceHandler "blotting-consultancy/internal/handler/marketplace"
 	mediaHandler "blotting-consultancy/internal/handler/media"
@@ -69,16 +66,13 @@ type Handlers struct {
 	Category        *categoryHandler.Handler
 	Tag             *tagHandler.Handler
 	Menu            *menuHandler.Handler
-	Backup          *backupHandler.Handler
 	AuditLog        *auditlogHandler.Handler
 	Sitemap         *sitemapHandler.Handler
 	Theme           *themeHandler.Handler
 	InstalledTheme  *installedThemeHandler.Handler
-	FormSubmission  *formSubmissionHandler.Handler
 	EmailSettings   *emailSettingsHandler.Handler
 	User            *userHandler.Handler
 	SEO             *seoHandler.Handler
-	Comment         *commentHandler.Handler
 	Search          *searchhandler.Handler
 	Role            *roleHandler.Handler
 	Marketplace     *marketplaceHandler.Handler
@@ -218,9 +212,6 @@ func registerRoutes(router *gin.Engine, handlers *Handlers, deps *RouteDeps) {
 		publicGroup.GET("/pages/:slug", handlers.UnifiedPage.PublicGetBySlug)
 	}
 
-	// Form submission (public, with dedicated rate limit)
-	router.POST("/public/form-submissions", middleware.FormSubmitRateLimit(), handlers.FormSubmission.HandlePublicSubmit)
-
 	// Auth routes (no auth middleware, but handlers validate credentials)
 	authGroup := router.Group("/auth")
 	{
@@ -324,20 +315,6 @@ func registerRoutes(router *gin.Engine, handlers *Handlers, deps *RouteDeps) {
 		adminGroup.DELETE("/menus/:id/items/:itemId", handlers.Menu.DeleteItem)
 		adminGroup.PUT("/menus/:id/items/reorder", handlers.Menu.ReorderItems)
 
-		// Backup management
-		adminGroup.GET("/backups", handlers.Backup.List)
-		adminGroup.POST("/backups/trigger", handlers.Backup.Trigger)
-
-		// Site export/import (requires backups:manage via RBAC)
-		adminBackup := adminGroup.Group("/backups")
-		adminBackup.Use(middleware.RequirePermission("backups", "manage", deps.UserRepo, deps.RBACCache))
-		{
-			adminBackup.POST("/export", handlers.Backup.Export)
-			adminBackup.GET("/export/:filename", handlers.Backup.DownloadExport)
-			adminBackup.POST("/import", handlers.Backup.Import)
-			adminBackup.POST("/import/validate", handlers.Backup.ValidateImport)
-		}
-
 		// Audit logs (requires audit_logs:read via RBAC)
 		adminAudit := adminGroup.Group("")
 		adminAudit.Use(middleware.RequirePermission("audit_logs", "read", deps.UserRepo, deps.RBACCache))
@@ -356,14 +333,6 @@ func registerRoutes(router *gin.Engine, handlers *Handlers, deps *RouteDeps) {
 		adminGroup.PUT("/themes/:id", handlers.InstalledTheme.AdminUpdate)
 		adminGroup.DELETE("/themes/:id", handlers.InstalledTheme.AdminDelete)
 		adminGroup.PUT("/themes/:id/activate", handlers.InstalledTheme.AdminActivate)
-
-		// Form submission management
-		adminGroup.GET("/form-submissions/counts", handlers.FormSubmission.HandleAdminCounts)
-		adminGroup.GET("/form-submissions", handlers.FormSubmission.HandleAdminList)
-		adminGroup.GET("/form-submissions/:id", handlers.FormSubmission.HandleAdminGetByID)
-		adminGroup.PATCH("/form-submissions/:id/status", handlers.FormSubmission.HandleAdminUpdateStatus)
-		adminGroup.POST("/form-submissions/bulk-status", handlers.FormSubmission.HandleAdminBulkUpdateStatus)
-		adminGroup.DELETE("/form-submissions/:id", handlers.FormSubmission.HandleAdminDelete)
 
 		// Email settings management
 		adminGroup.GET("/email-settings", handlers.EmailSettings.HandleGet)
@@ -499,9 +468,6 @@ func registerRoutes(router *gin.Engine, handlers *Handlers, deps *RouteDeps) {
 
 	// SEO routes (public + admin)
 	handlers.SEO.RegisterRoutes(publicGroup, adminGroup)
-
-	// Comment routes (public + admin)
-	handlers.Comment.RegisterRoutes(publicGroup, adminGroup)
 
 	// Search routes (public + admin)
 	handlers.Search.RegisterRoutes(publicGroup, adminGroup)

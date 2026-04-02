@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"blotting-consultancy/internal/cache"
 	"blotting-consultancy/internal/provider"
 	"blotting-consultancy/internal/repository"
 )
@@ -17,10 +18,14 @@ type Module interface {
 
 // Dependencies provides shared resources that modules need.
 type Dependencies struct {
-	DB       *gorm.DB
-	Registry *provider.Registry
-	Repos    *SharedRepos
-	SiteCfg  repository.SiteConfigRepository
+	DB         *gorm.DB
+	Registry   *provider.Registry
+	Repos      *SharedRepos
+	SiteCfg    repository.SiteConfigRepository
+	UserRepo   repository.UserRepository // for RBAC middleware in modules
+	RBACCache  *cache.Cache             // for RBAC middleware in modules
+	UploadDir  string                   // path to uploads directory
+	AppVersion string                   // application version string
 }
 
 // SharedRepos holds cross-module repositories.

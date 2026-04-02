@@ -16,7 +16,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm/logger"
 
-	"blotting-consultancy/internal/backup"
 	"blotting-consultancy/internal/cache"
 	"blotting-consultancy/internal/db"
 	"blotting-consultancy/internal/db/migrations"
@@ -28,16 +27,13 @@ import (
 	wizardHandler "blotting-consultancy/internal/handler/wizard"
 	auditlogHandler "blotting-consultancy/internal/handler/auditlog"
 	authHandler "blotting-consultancy/internal/handler/auth"
-	backupHandler "blotting-consultancy/internal/handler/backup"
 	categoryHandler "blotting-consultancy/internal/handler/category"
-	commentHandler "blotting-consultancy/internal/handler/comment"
 	mediaHandler "blotting-consultancy/internal/handler/media"
 	publicHandler "blotting-consultancy/internal/handler/public"
 	sitemapHandler "blotting-consultancy/internal/handler/sitemap"
 	tagHandler "blotting-consultancy/internal/handler/tag"
 	bootstrapHandler "blotting-consultancy/internal/handler/bootstrap"
 	emailSettingsHandler "blotting-consultancy/internal/handler/email_settings"
-	formSubmissionHandler "blotting-consultancy/internal/handler/form_submission"
 	installedThemeHandler "blotting-consultancy/internal/handler/installed_theme"
 	marketplaceHandler "blotting-consultancy/internal/handler/marketplace"
 	menuHandler "blotting-consultancy/internal/handler/menu"
@@ -50,6 +46,9 @@ import (
 	mediaFolderHandler "blotting-consultancy/internal/handler/media_folder"
 	migrationHandler "blotting-consultancy/internal/handler/migration"
 	"blotting-consultancy/internal/module"
+	backupMod "blotting-consultancy/internal/modules/backup"
+	commentMod "blotting-consultancy/internal/modules/comment"
+	formSubmissionMod "blotting-consultancy/internal/modules/form_submission"
 	qa "blotting-consultancy/internal/modules/qa"
 	siteHandler "blotting-consultancy/internal/handler/site"
 	storageHandler "blotting-consultancy/internal/handler/storage"
@@ -162,10 +161,8 @@ func main() {
 		&model.AuditEvent{},
 		&model.Page{},
 		&model.InstalledTheme{},
-		&model.FormSubmission{},
 		&model.MenuGroup{},
 		&model.MenuItem{},
-		&model.Comment{},
 		&model.RBACRole{},
 		&model.Permission{},
 		&model.UserRole{},
@@ -237,9 +234,7 @@ func main() {
 	auditEventRepo := repository.NewGormAuditEventRepository(database.DB)
 	pageRepo := repository.NewGormPageRepository(database.DB)
 	installedThemeRepo := repository.NewGormInstalledThemeRepository(database.DB)
-	formSubmissionRepo := repository.NewGormFormSubmissionRepository(database.DB)
 	menuRepo := repository.NewGormMenuRepository(database.DB)
-	commentRepo := repository.NewGormCommentRepository(database.DB)
 	roleRepo := repository.NewGormRoleRepository(database.DB)
 	marketplaceRepo := repository.NewGormMarketplaceRepository(database.DB)
 	mediaFolderRepo := repository.NewGormMediaFolderRepository(database.DB)
@@ -282,9 +277,7 @@ func main() {
 	auditDbWriter := audit.NewDbWriter(auditEventRepo)
 	_ = auditDbWriter // available for future use
 
-	// Initialize backup service
-	backupSvc := backup.NewService(database.DB, "./backups", 10, cfg.UploadDir, Version)
-	log.Info("Audit logger and backup service initialized")
+	log.Info("Audit logger initialized")
 
 	// Initialize search service (needed by article handler)
 	searchService := service.NewSearchService(database.DB, db.IsPostgresDSN(cfg.DBDSN))
@@ -327,9 +320,18 @@ func main() {
 	registry.Register("storage", service.NewLocalStorage(cfg.UploadDir))
 	log.Info("Provider registry initialized", "providers", registry.List())
 
+	// Initialize in-memory TTL caches
+	publicCache := cache.New(60 * time.Second)
+	rbacCache := cache.New(30 * time.Second)
+
 	// Initialize feature modules
 	mgr := module.NewManager()
+	commentModule := commentMod.New()
 	mgr.Register(qa.New())
+	mgr.Register(commentModule)
+	mgr.Register(formSubmissionMod.New())
+	backupModule := backupMod.New()
+	mgr.Register(backupModule)
 	if err := mgr.InitAll(module.Dependencies{
 		DB:       database.DB,
 		Registry: registry,
@@ -337,15 +339,15 @@ func main() {
 			ContentDoc: contentDocRepo,
 			Article:    articleRepo,
 		},
-		SiteCfg: siteConfigRepo,
+		SiteCfg:    siteConfigRepo,
+		UserRepo:   userRepo,
+		RBACCache:  rbacCache,
+		UploadDir:  cfg.UploadDir,
+		AppVersion: Version,
 	}); err != nil {
 		log.Error("Failed to initialize modules", "error", err)
 		os.Exit(1)
 	}
-
-	// Initialize in-memory TTL caches
-	publicCache := cache.New(60 * time.Second)
-	rbacCache := cache.New(30 * time.Second)
 
 	// Cache invalidation on content changes
 	bus.Subscribe(eventbus.ContentCreated, eventbus.AsyncHandler(func(e eventbus.Event) {
@@ -372,20 +374,15 @@ func main() {
 	tagHandlerInst := tagHandler.NewHandler(tagRepo, articleRepo)
 	menuHandlerInst := menuHandler.NewHandler(menuRepo)
 	articleHandlerInst := articleHandler.NewHandler(articleRepo, categoryRepo, tagRepo, searchService, bus, publicCache)
-	backupHandlerInst := backupHandler.NewHandler(backupSvc)
 	auditlogHandlerInst := auditlogHandler.NewHandler(auditEventRepo)
 	sitemapHandlerInst := sitemapHandler.NewHandler(contentDocRepo, articleRepo, cfg.BaseURL)
 	themeHandlerInst := themeHandler.NewHandler(siteConfigRepo)
 	installedThemeHandlerInst := installedThemeHandler.NewHandler(installedThemeRepo, themePageService)
 	bootstrapHandlerInst := bootstrapHandler.NewHandler(contentDocRepo, installedThemeRepo, pageRepo, siteConfigRepo, publicCache)
 	emailSvc := service.NewEmailService(siteConfigRepo)
-	formSubmissionHandlerInst := formSubmissionHandler.NewHandler(formSubmissionRepo, emailSvc)
 	emailSettingsHandlerInst := emailSettingsHandler.NewHandler(siteConfigRepo, emailSvc)
 	userHandlerInst := userHandler.NewHandler(userRepo)
 	seoHandlerInst := seoHandler.NewHandler(database.DB)
-	captchaProvider := &provider.NoopCaptchaProvider{}
-	antispamService := service.NewAntiSpamService(captchaProvider)
-	commentHandlerInst := commentHandler.NewHandler(commentRepo, antispamService)
 	searchHandlerInst := searchhandler.NewHandler(searchService)
 	roleHandlerInst := roleHandler.NewHandler(roleRepo, userRepo)
 	marketplaceSvc := service.NewMarketplaceService(marketplaceRepo)
@@ -443,16 +440,13 @@ func main() {
 		Category:       categoryHandlerInst,
 		Tag:            tagHandlerInst,
 		Menu:           menuHandlerInst,
-		Backup:         backupHandlerInst,
 		AuditLog:       auditlogHandlerInst,
 		Sitemap:        sitemapHandlerInst,
 		Theme:          themeHandlerInst,
 		InstalledTheme: installedThemeHandlerInst,
-		FormSubmission: formSubmissionHandlerInst,
 		EmailSettings:  emailSettingsHandlerInst,
 		User:           userHandlerInst,
 		SEO:            seoHandlerInst,
-		Comment:        commentHandlerInst,
 		Search:         searchHandlerInst,
 		Role:           roleHandlerInst,
 		Marketplace:    marketplaceHandlerInst,
@@ -508,7 +502,7 @@ func main() {
 
 	// Stop background services
 	schedulerService.Stop()
-	antispamService.Stop()
+	commentModule.Stop()
 
 	// Shutdown with timeout
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
