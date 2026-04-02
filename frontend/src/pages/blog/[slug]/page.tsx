@@ -4,14 +4,13 @@ import { getPublicArticle } from "@/api/articles";
 import type { Article } from "@/api/articles";
 import { PublicLayout } from "@/theme/layouts";
 import PageHero from "@/components/feature/PageHero";
-import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import SeoHead from "@/components/SeoHead";
 
 export default function BlogDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
 
   const [article, setArticle] = useState<Article | null>(null);
-  useDocumentTitle(article?.zhTitle || article?.enTitle, "印迹法规咨询");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,6 +60,17 @@ export default function BlogDetailPage() {
 
   return (
     <PublicLayout>
+      {article && (
+        <SeoHead
+          title={`${article.zhTitle || article.enTitle} | 印迹法规咨询`}
+          description={article.zhMetaDescription || article.enMetaDescription || ""}
+          ogTitle={article.zhSeoTitle || article.zhTitle || article.enTitle}
+          ogDescription={article.zhMetaDescription || article.enMetaDescription || ""}
+          ogImage={article.ogImage || article.coverImage || ""}
+          ogType="article"
+          canonicalUrl={`/blog/${article.slug}`}
+        />
+      )}
       <PageHero
         title={title || "Blog"}
         label="Blog"
