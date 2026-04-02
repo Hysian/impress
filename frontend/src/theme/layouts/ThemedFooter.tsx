@@ -67,7 +67,7 @@ export default function ThemedFooter({ config }: ThemedFooterProps) {
 
             {/* Section Columns */}
             {sections.map((section, index) => (
-              <div key={index}>
+              <div key={section.title || String(index)}>
                 {section.title && (
                   <h3 className="text-sm font-semibold uppercase tracking-wider mb-4 text-on-primary">
                     {section.title}
@@ -76,7 +76,7 @@ export default function ThemedFooter({ config }: ThemedFooterProps) {
                 {section.links && section.links.length > 0 && (
                   <ul className="space-y-2">
                     {section.links.map((link, linkIndex) => (
-                      <li key={linkIndex}>
+                      <li key={link.href || link.label || String(linkIndex)}>
                         <a
                           href={link.href || "#"}
                           className="text-sm text-on-primary/70 hover:text-accent transition-colors cursor-pointer"
@@ -110,7 +110,7 @@ export default function ThemedFooter({ config }: ThemedFooterProps) {
               <div className="md:ml-auto">
                 <ul className="flex flex-wrap gap-4 text-sm">
                   {links.map((link, index) => (
-                    <li key={index}>
+                    <li key={link.href || link.label || String(index)}>
                       <a
                         href={link.href || "#"}
                         className="text-gray-300 hover:text-accent transition-colors cursor-pointer"

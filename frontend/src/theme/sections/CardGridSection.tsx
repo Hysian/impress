@@ -45,7 +45,7 @@ export default function CardGridSection({ data }: SectionProps<CardGridSectionDa
         <div className={`grid ${gridClass} gap-0`}>
           {cards.map((card, index) => (
             <div
-              key={index}
+              key={card.title || String(index)}
               className="group relative w-full sm:aspect-auto overflow-hidden"
             >
               <img

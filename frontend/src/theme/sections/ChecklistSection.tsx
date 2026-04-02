@@ -19,7 +19,7 @@ export default function ChecklistSection({ data }: SectionProps<ChecklistSection
           const items = category.items || [];
           if (!category.title && items.length === 0) return null;
           return (
-            <div key={index}>
+            <div key={category.title || String(index)}>
               {category.title && (
                 <h2 className="text-xl md:text-2xl font-bold text-primary mb-4">
                   {category.title}
@@ -29,7 +29,7 @@ export default function ChecklistSection({ data }: SectionProps<ChecklistSection
                 <ul className="space-y-2">
                   {items.map((item, i) => (
                     <li
-                      key={i}
+                      key={`${item.slice(0, 40)}-${i}`}
                       className="flex items-start gap-2 text-base text-on-surface-muted leading-relaxed"
                     >
                       <span className="text-primary flex-shrink-0" aria-hidden>

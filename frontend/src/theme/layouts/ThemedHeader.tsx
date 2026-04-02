@@ -103,7 +103,7 @@ function DesktopNavItem({ item, scrolled, depth = 0 }: {
       >
         <div className="bg-black/70 backdrop-blur-md rounded-lg shadow-xl ring-1 ring-white/10 py-1.5 min-w-[180px]">
           {item.children!.map((child, ci) => (
-            <DesktopNavItem key={ci} item={child} scrolled={scrolled} depth={depth + 1} />
+            <DesktopNavItem key={child.path || child.label || String(ci)} item={child} scrolled={scrolled} depth={depth + 1} />
           ))}
         </div>
       </div>
@@ -156,7 +156,7 @@ function MobileNavItem({ item, depth = 0, onNavigate }: {
       {hasChildren && expanded && (
         <div>
           {item.children!.map((child, ci) => (
-            <MobileNavItem key={ci} item={child} depth={depth + 1} onNavigate={onNavigate} />
+            <MobileNavItem key={child.path || child.label || String(ci)} item={child} depth={depth + 1} onNavigate={onNavigate} />
           ))}
         </div>
       )}
@@ -251,7 +251,7 @@ export default function ThemedHeader({ config }: ThemedHeaderProps) {
             {navigation.length > 0 && (
               <div className="hidden lg:flex items-center gap-7">
                 {navigation.map((item, index) => (
-                  <DesktopNavItem key={index} item={item} scrolled={scrolled} />
+                  <DesktopNavItem key={item.path || item.label || String(index)} item={item} scrolled={scrolled} />
                 ))}
               </div>
             )}
@@ -280,7 +280,7 @@ export default function ThemedHeader({ config }: ThemedHeaderProps) {
               <div className="pb-2 space-y-0.5">
                 {navigation.map((item, index) => (
                   <MobileNavItem
-                    key={index}
+                    key={item.path || item.label || String(index)}
                     item={item}
                     onNavigate={() => setIsMobileMenuOpen(false)}
                   />

@@ -34,7 +34,7 @@ export default function ServiceCardsSection({ data }: SectionProps<ServiceCardsS
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8 xl:gap-10">
           {serviceList.map((service, index) => (
             <div
-              key={index}
+              key={service.title || String(index)}
               className="flex flex-col rounded-lg overflow-hidden bg-white shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
             >
               <div className="w-full h-[160px] sm:h-[180px] flex-shrink-0 overflow-hidden bg-surface-alt">

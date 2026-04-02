@@ -77,7 +77,7 @@ export default function Header() {
               <div className="hidden lg:flex items-center space-x-8">
                 {navigation.map((item, index) => (
                   <Link
-                    key={index}
+                    key={item.href || item.label || String(index)}
                     to={item.href || '/'}
                     className={`text-sm font-medium transition-colors whitespace-nowrap cursor-pointer ${
                       isScrolled ? 'text-gray-700 hover:text-accent' : 'text-white hover:text-accent'
@@ -109,7 +109,7 @@ export default function Header() {
             <div className="lg:hidden mt-4 pb-4 space-y-3">
               {navigation.map((item, index) => (
                 <Link
-                  key={index}
+                  key={item.href || item.label || String(index)}
                   to={item.href || '/'}
                   className="block text-sm font-medium text-gray-700 hover:text-accent transition-colors cursor-pointer"
                   onClick={() => setIsMobileMenuOpen(false)}
