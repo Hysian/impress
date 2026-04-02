@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback, useRef, useMemo, memo } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useEditor, useEditorState, EditorContent } from "@tiptap/react";
-import type { Editor } from "@tiptap/react";
+import { useEditor, EditorContent } from "@tiptap/react";
+import type { Article } from "@/api/articles";
 import {
   getAdminArticle,
   createArticle,
@@ -9,8 +9,7 @@ import {
   getCategories,
   getTags,
 } from "@/api/articles";
-import type { Article, Category, Tag } from "@/api/articles";
-import MetadataEditor from "@/components/admin/MetadataEditor";
+import type { Category, Tag } from "@/api/articles";
 import ImagePickerModal from "@/components/admin/ImagePickerModal";
 import {
   getEditorExtensions,
@@ -26,6 +25,9 @@ import MarkdownMode from "@/components/admin/editor/MarkdownMode";
 import TurndownService from "turndown";
 import { marked } from "marked";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import EditorSidebar from "./EditorSidebar";
+import ArticleForm from "./ArticleForm";
+import { SeoFieldsPanel, AdvancedSettingsPanel, PopoverButton } from "./SeoFields";
 
 export default function ArticleEditorPage() {
   useDocumentTitle("编辑文章", "印迹后台");
@@ -313,7 +315,7 @@ export default function ArticleEditorPage() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-3.5rem)] -m-6">
-      {/* ═══ Sticky Header: Action Bar ═══ */}
+      {/* Sticky Header: Action Bar */}
       <div className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm flex-shrink-0">
         {/* Row 1: Back + Title + Actions */}
         <div className="flex items-center gap-3 px-4 py-2">
@@ -346,96 +348,34 @@ export default function ArticleEditorPage() {
 
         {/* Settings Panels (slide down) */}
         {showBasicInfo && (
-          <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 space-y-3 max-h-80 overflow-y-auto">
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Slug" value={slug} onChange={setSlug} placeholder="article-url-slug" />
-              <Field label="作者" value={author} onChange={setAuthor} placeholder="作者名" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">封面图</label>
-              <div className="flex items-center gap-2">
-                <input type="text" value={coverImage} onChange={(e) => setCoverImage(e.target.value)}
-                  className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded-lg" placeholder="URL 或点击选择" />
-                <button type="button" onClick={() => setShowCoverPicker(true)}
-                  className="px-3 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-100">选择</button>
-              </div>
-              {coverImage && <img src={coverImage} alt="封面" className="mt-1.5 max-h-20 rounded border border-gray-200"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />}
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">分类</label>
-              {categories.length === 0 ? <span className="text-xs text-gray-400">无分类</span> : (
-                <div className="flex flex-wrap gap-1.5">
-                  {categories.map((cat) => (
-                    <button key={cat.id} type="button" onClick={() => toggleCategory(cat.id)}
-                      className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
-                        selectedCategoryIds.includes(cat.id) ? "bg-purple-100 border-purple-300 text-purple-800" : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
-                      }`}>{cat.zhName || cat.enName}</button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">标签</label>
-              {tags.length === 0 ? <span className="text-xs text-gray-400">无标签</span> : (
-                <div className="flex flex-wrap gap-1.5">
-                  {tags.map((tag) => (
-                    <button key={tag.id} type="button" onClick={() => toggleTag(tag.id)}
-                      className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
-                        selectedTagIds.includes(tag.id) ? "bg-blue-100 border-blue-300 text-blue-800" : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
-                      }`}>{tag.zhName || tag.enName}</button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+          <ArticleForm
+            slug={slug} setSlug={setSlug}
+            author={author} setAuthor={setAuthor}
+            coverImage={coverImage} setCoverImage={setCoverImage}
+            showCoverPicker={showCoverPicker} setShowCoverPicker={setShowCoverPicker}
+            categories={categories} selectedCategoryIds={selectedCategoryIds} toggleCategory={toggleCategory}
+            tags={tags} selectedTagIds={selectedTagIds} toggleTag={toggleTag}
+          />
         )}
 
         {showSeo && (
-          <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 space-y-3 max-h-80 overflow-y-auto">
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="中文 SEO 标题" value={zhSeoTitle} onChange={setZhSeoTitle} placeholder="SEO 标题" />
-              <Field label="英文 SEO 标题" value={enSeoTitle} onChange={setEnSeoTitle} placeholder="SEO Title" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">中文 Meta 描述</label>
-                <textarea value={zhMetaDescription} onChange={(e) => setZhMetaDescription(e.target.value)} rows={2}
-                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg" placeholder="Meta 描述" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">英文 Meta 描述</label>
-                <textarea value={enMetaDescription} onChange={(e) => setEnMetaDescription(e.target.value)} rows={2}
-                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg" placeholder="Meta Description" />
-              </div>
-            </div>
-            <Field label="OG Image URL" value={ogImage} onChange={setOgImage} placeholder="https://..." />
-          </div>
+          <SeoFieldsPanel
+            zhSeoTitle={zhSeoTitle} setZhSeoTitle={setZhSeoTitle}
+            enSeoTitle={enSeoTitle} setEnSeoTitle={setEnSeoTitle}
+            zhMetaDescription={zhMetaDescription} setZhMetaDescription={setZhMetaDescription}
+            enMetaDescription={enMetaDescription} setEnMetaDescription={setEnMetaDescription}
+            ogImage={ogImage} setOgImage={setOgImage}
+          />
         )}
 
         {showAdvanced && (
-          <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 space-y-3 max-h-80 overflow-y-auto">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">可见性</label>
-                <select value={visibility} onChange={(e) => setVisibility(e.target.value)}
-                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg">
-                  <option value="public">公开</option>
-                  <option value="private">私密</option>
-                  <option value="password_protected">密码保护</option>
-                </select>
-              </div>
-              <div className="flex items-end gap-4 pb-1">
-                <CheckboxField label="自动摘要" checked={autoSummary} onChange={setAutoSummary} />
-                <CheckboxField label="允许评论" checked={allowComments} onChange={setAllowComments} />
-                <CheckboxField label="置顶" checked={pinned} onChange={setPinned} />
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">元数据</label>
-              <MetadataEditor value={metadata} onChange={setMetadata} />
-            </div>
-          </div>
+          <AdvancedSettingsPanel
+            visibility={visibility} setVisibility={setVisibility}
+            autoSummary={autoSummary} setAutoSummary={setAutoSummary}
+            allowComments={allowComments} setAllowComments={setAllowComments}
+            pinned={pinned} setPinned={setPinned}
+            metadata={metadata} setMetadata={setMetadata}
+          />
         )}
 
         {/* Row 2: Editor Toolbar (for active language editor) + Mode Switcher */}
@@ -453,7 +393,7 @@ export default function ArticleEditorPage() {
         </div>
       </div>
 
-      {/* ═══ Error Bar ═══ */}
+      {/* Error Bar */}
       {error && (
         <div className="px-4 py-2 bg-red-50 border-b border-red-200 text-red-800 text-sm flex-shrink-0">
           {error}
@@ -461,7 +401,7 @@ export default function ArticleEditorPage() {
         </div>
       )}
 
-      {/* ═══ Main Content: Editor + Sidebar ═══ */}
+      {/* Main Content: Editor + Sidebar */}
       <div className="flex-1 flex min-h-0">
         {/* Left: Language Carousel + Editor Content */}
         <div className="flex-1 flex flex-col min-h-0 min-w-0 bg-white">
@@ -564,7 +504,7 @@ export default function ArticleEditorPage() {
         />
       </div>
 
-      {/* ═══ Modals ═══ */}
+      {/* Modals */}
       {Object.entries(langEditors).map(([lang, entry]) =>
         entry.editor ? <EditorModals key={lang} editor={entry.editor} state={entry.state} /> : null
       )}
@@ -575,177 +515,5 @@ export default function ArticleEditorPage() {
         onSelect={(item) => { setCoverImage(item.url); setShowCoverPicker(false); }}
       />
     </div>
-  );
-}
-
-// ─── Sidebar: Outline + Details ───
-
-interface HeadingItem {
-  level: number;
-  text: string;
-  pos: number;
-}
-
-const EditorSidebar = memo(function EditorSidebar({ editor, article }: {
-  editor: Editor | null;
-  article: { slug: string; author: string; createdAt: string | null; publishedAt: string | null } | null;
-}) {
-  const [activeTab, setActiveTab] = useState<"outline" | "details">("outline");
-
-  // Extract headings & stats reactively from editor state
-  const { headings, charCount, wordCount } = useEditorState({
-    editor,
-    selector: ({ editor: e }) => {
-      if (!e) return { headings: [] as HeadingItem[], charCount: 0, wordCount: 0 };
-      const h: HeadingItem[] = [];
-      e.state.doc.descendants((node, pos) => {
-        if (node.type.name === "heading") {
-          h.push({ level: node.attrs.level as number, text: node.textContent, pos });
-        }
-      });
-      const text = e.state.doc.textContent;
-      const chars = text.length;
-      // Count words: CJK chars each count as one word; latin words split by spaces
-      const cjk = (text.match(/[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]/g) || []).length;
-      const latin = text.replace(/[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]/g, " ").trim().split(/\s+/).filter(Boolean).length;
-      return { headings: h, charCount: chars, wordCount: cjk + latin };
-    },
-    equalityFn: (a, b) => {
-      if (a.charCount !== b.charCount || a.wordCount !== b.wordCount) return false;
-      if (a.headings.length !== b.headings.length) return false;
-      return a.headings.every((h, i) =>
-        h.level === b.headings[i].level && h.text === b.headings[i].text && h.pos === b.headings[i].pos
-      );
-    },
-  });
-
-  const scrollToHeading = (pos: number) => {
-    if (!editor) return;
-    editor.chain().focus().setTextSelection(pos).run();
-    // Scroll the DOM node into view
-    try {
-      const dom = editor.view.domAtPos(pos);
-      const el = dom.node instanceof HTMLElement ? dom.node : dom.node.parentElement;
-      el?.scrollIntoView({ behavior: "smooth", block: "center" });
-    } catch { /* ignore */ }
-  };
-
-  const formatDate = (d: string | null) => {
-    if (!d) return "—";
-    try { return new Date(d).toLocaleString("zh-CN"); } catch { return d; }
-  };
-
-  return (
-    <div className="w-60 flex-shrink-0 border-l border-gray-200 bg-gray-50 flex flex-col min-h-0">
-      {/* Tab switcher */}
-      <div className="flex border-b border-gray-200 flex-shrink-0">
-        <button
-          onClick={() => setActiveTab("outline")}
-          className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
-            activeTab === "outline" ? "text-blue-700 border-b-2 border-blue-600 bg-white" : "text-gray-500 hover:text-gray-700"
-          }`}
-        >
-          大纲
-        </button>
-        <button
-          onClick={() => setActiveTab("details")}
-          className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
-            activeTab === "details" ? "text-blue-700 border-b-2 border-blue-600 bg-white" : "text-gray-500 hover:text-gray-700"
-          }`}
-        >
-          详情
-        </button>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-3">
-        {activeTab === "outline" ? (
-          headings.length === 0 ? (
-            <p className="text-xs text-gray-400 italic">暂无标题</p>
-          ) : (
-            <nav className="space-y-0.5">
-              {headings.map((h, i) => (
-                <button
-                  key={i}
-                  onClick={() => scrollToHeading(h.pos)}
-                  className="block w-full text-left text-xs py-1 px-1.5 rounded hover:bg-gray-200 text-gray-700 truncate transition-colors"
-                  style={{ paddingLeft: `${(h.level - 1) * 12 + 6}px` }}
-                  title={h.text}
-                >
-                  <span className="text-gray-400 mr-1">H{h.level}</span>
-                  {h.text || <span className="text-gray-300 italic">空标题</span>}
-                </button>
-              ))}
-            </nav>
-          )
-        ) : (
-          <div className="space-y-3 text-xs">
-            <DetailRow label="字符数" value={charCount.toLocaleString()} />
-            <DetailRow label="词数" value={wordCount.toLocaleString()} />
-            {article && (
-              <>
-                <DetailRow label="创建时间" value={formatDate(article.createdAt)} />
-                <DetailRow label="发布时间" value={formatDate(article.publishedAt)} />
-                {article.author && <DetailRow label="作者" value={article.author} />}
-                {article.slug && (
-                  <div>
-                    <div className="text-gray-400 mb-0.5">访问链接</div>
-                    <a
-                      href={`/articles/${article.slug}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline break-all"
-                    >
-                      /articles/{article.slug}
-                    </a>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-});
-
-function DetailRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between">
-      <span className="text-gray-400">{label}</span>
-      <span className="text-gray-700 font-medium">{value}</span>
-    </div>
-  );
-}
-
-// ─── Tiny helper components ───
-
-function PopoverButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button type="button" onClick={onClick}
-      className={`px-2.5 py-1.5 text-xs rounded-lg border transition-colors ${
-        active ? "bg-blue-50 border-blue-300 text-blue-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"
-      }`}>
-      {label}
-    </button>
-  );
-}
-
-function Field({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
-  return (
-    <div>
-      <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
-      <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500" />
-    </div>
-  );
-}
-
-function CheckboxField({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="rounded border-gray-300" />
-      {label}
-    </label>
   );
 }
