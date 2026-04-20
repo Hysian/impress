@@ -104,9 +104,18 @@ export default function CoreServicesPage() {
     );
   }
 
-  const pageConfig = (config as CoreServicesPageConfig) || {};
+  const pageConfig = (config as CoreServicesPageConfig & { services?: unknown }) || {};
   const hero = pageConfig.hero || {};
-  const services = Array.isArray(pageConfig.services) ? pageConfig.services : [];
+  // Accept legacy services array OR new service-cards {title, items:[{title, description, image}]} shape
+  const rawServices = pageConfig.services as unknown;
+  let services: ServiceBlock[];
+  if (Array.isArray(rawServices)) {
+    services = rawServices as ServiceBlock[];
+  } else if (rawServices && typeof rawServices === "object" && Array.isArray((rawServices as { items?: unknown }).items)) {
+    services = ((rawServices as { items: ServiceBlock[] }).items);
+  } else {
+    services = [];
+  }
 
   return (
     <PublicLayout>

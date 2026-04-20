@@ -64,10 +64,19 @@ export default function AboutPage() {
     );
   }
 
-  const pageConfig = (config as AboutPageConfig) || {};
+  const pageConfig = (config as AboutPageConfig & { blocks?: unknown }) || {};
   const hero = pageConfig.hero || {};
   const companyProfile = pageConfig.companyProfile || {};
-  const blocks = Array.isArray(pageConfig.blocks) ? pageConfig.blocks : [];
+  // Accept legacy blocks array OR new card-grid {title, cards:[...]} shape
+  const rawBlocks = pageConfig.blocks as unknown;
+  let blocks: BlockConfig[];
+  if (Array.isArray(rawBlocks)) {
+    blocks = rawBlocks as BlockConfig[];
+  } else if (rawBlocks && typeof rawBlocks === "object" && Array.isArray((rawBlocks as { cards?: unknown }).cards)) {
+    blocks = ((rawBlocks as { cards: BlockConfig[] }).cards);
+  } else {
+    blocks = [];
+  }
 
   return (
     <PublicLayout>

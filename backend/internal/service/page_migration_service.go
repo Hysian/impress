@@ -28,12 +28,12 @@ var pageKeyMappings = map[string][]sectionMapping{
 	"about": {
 		{SectionType: "hero", Variant: "default", ConfigKey: "hero"},
 		{SectionType: "company-profile", Variant: "default", ConfigKey: "companyProfile"},
-		{SectionType: "rich-text", Variant: "default", ConfigKey: "blocks"},
+		{SectionType: "card-grid", Variant: "default", ConfigKey: "blocks"},
 		{SectionType: "team-grid", Variant: "default", ConfigKey: "team"},
 	},
 	"advantages": {
 		{SectionType: "hero", Variant: "default", ConfigKey: "hero"},
-		{SectionType: "checklist", Variant: "default", ConfigKey: "blocks"},
+		{SectionType: "card-grid", Variant: "default", ConfigKey: "blocks"},
 	},
 	"core-services": {
 		{SectionType: "hero", Variant: "default", ConfigKey: "hero"},

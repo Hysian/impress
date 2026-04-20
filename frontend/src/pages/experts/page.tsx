@@ -41,9 +41,27 @@ export default function ExpertsPage() {
     autoNormalize: true,
   });
 
-  const pageConfig = (config as ExpertsPageConfig) || {};
+  const pageConfig = (config as ExpertsPageConfig & { experts?: unknown }) || {};
   const hero = pageConfig.hero || {};
-  const experts = Array.isArray(pageConfig.experts) ? pageConfig.experts : [];
+  // Accept both legacy [{...}] shape and new team-grid {experts:[{id,name,title,image,bio}]} shape
+  const rawExperts = pageConfig.experts as unknown;
+  let experts: Expert[];
+  if (Array.isArray(rawExperts)) {
+    experts = rawExperts as Expert[];
+  } else if (rawExperts && typeof rawExperts === "object" && Array.isArray((rawExperts as { experts?: unknown }).experts)) {
+    experts = ((rawExperts as { experts: Array<{ id?: string; name?: string; title?: string; image?: MediaRef; bio?: string }> }).experts).map((e, idx) => ({
+      id: e.id || String(idx),
+      name: e.name,
+      title: e.title,
+      avatar: e.image,
+      bioParagraphs: e.bio ? [e.bio] : [],
+    }));
+  } else {
+    experts = [];
+  }
+  if (!pageConfig.sectionTitle && rawExperts && typeof rawExperts === "object" && (rawExperts as { sectionTitle?: string }).sectionTitle) {
+    pageConfig.sectionTitle = (rawExperts as { sectionTitle?: string }).sectionTitle;
+  }
 
   const [activeId, setActiveId] = useState<string>(experts[0]?.id || '');
 

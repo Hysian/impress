@@ -107,9 +107,18 @@ export default function AdvantagesPage() {
     );
   }
 
-  const pageConfig = (config as AdvantagesPageConfig) || {};
+  const pageConfig = (config as AdvantagesPageConfig & { blocks?: unknown }) || {};
   const hero = pageConfig.hero || {};
-  const blocks = Array.isArray(pageConfig.blocks) ? pageConfig.blocks : [];
+  // Accept legacy blocks array OR new card-grid {title, cards:[{title, description, image}]} shape
+  const rawBlocks = pageConfig.blocks as unknown;
+  let blocks: AdvantageBlock[];
+  if (Array.isArray(rawBlocks)) {
+    blocks = rawBlocks as AdvantageBlock[];
+  } else if (rawBlocks && typeof rawBlocks === "object" && Array.isArray((rawBlocks as { cards?: unknown }).cards)) {
+    blocks = ((rawBlocks as { cards: AdvantageBlock[] }).cards);
+  } else {
+    blocks = [];
+  }
 
   return (
     <PublicLayout>

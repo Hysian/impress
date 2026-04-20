@@ -56,9 +56,21 @@ export default function CasesPage() {
     );
   }
 
-  const pageConfig = (config as CasesPageConfig) || {};
+  const pageConfig = (config as CasesPageConfig & { cases?: unknown }) || {};
   const hero = pageConfig.hero || {};
-  const categories = Array.isArray(pageConfig.cases) ? pageConfig.cases : [];
+  // Accept both legacy [{title, items}] shape and new card-grid {title, cards:[{title, description}]} shape
+  const rawCases = pageConfig.cases as unknown;
+  let categories: CaseCategory[];
+  if (Array.isArray(rawCases)) {
+    categories = rawCases as CaseCategory[];
+  } else if (rawCases && typeof rawCases === "object" && Array.isArray((rawCases as { cards?: unknown }).cards)) {
+    categories = ((rawCases as { cards: Array<{ title?: string; description?: string }> }).cards).map((c) => ({
+      title: c.title,
+      items: c.description ? [c.description] : [],
+    }));
+  } else {
+    categories = [];
+  }
 
   return (
     <PublicLayout>

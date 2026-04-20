@@ -75,10 +75,14 @@ export default function PageEditorPage() {
       setDraftVersion(draft.draftVersion);
 
       const config = draft.draftConfig as { sections?: any[] } | null;
-      // Backend stores content in "props"; frontend SectionData uses "data" — normalize
+      // Backend stores content in "props"; frontend SectionData uses "data" — normalize.
+      // Note: plain `s.data || s.props` is broken because `{}` is truthy in JS, so an
+      // empty data object won't fall back to props. Check for meaningful content.
+      const hasContent = (v: unknown): boolean =>
+        !!v && typeof v === "object" && Object.keys(v as object).length > 0;
       const loadedSections: SectionData[] = (config?.sections || []).map((s: any) => ({
         ...s,
-        data: s.data || s.props || {},
+        data: hasContent(s.data) ? s.data : (s.props ?? {}),
       }));
       setSections(loadedSections);
       setSectionJson(JSON.stringify(loadedSections, null, 2));
