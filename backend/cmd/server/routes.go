@@ -18,6 +18,7 @@ import (
 	categoryHandler "blotting-consultancy/internal/handler/category"
 	chunkedUploadHandler "blotting-consultancy/internal/handler/chunked_upload"
 	emailSettingsHandler "blotting-consultancy/internal/handler/email_settings"
+	featuresHandler "blotting-consultancy/internal/handler/features"
 	globalConfigHandler "blotting-consultancy/internal/handler/global_config"
 	installedThemeHandler "blotting-consultancy/internal/handler/installed_theme"
 	marketplaceHandler "blotting-consultancy/internal/handler/marketplace"
@@ -72,6 +73,7 @@ type Handlers struct {
 	Theme           *themeHandler.Handler
 	InstalledTheme  *installedThemeHandler.Handler
 	EmailSettings   *emailSettingsHandler.Handler
+	Features        *featuresHandler.Handler
 	GlobalConfig    *globalConfigHandler.Handler
 	User            *userHandler.Handler
 	SEO             *seoHandler.Handler
@@ -343,6 +345,9 @@ func registerRoutes(router *gin.Engine, handlers *Handlers, deps *RouteDeps) {
 
 		// Global config (branding / identity / SEO defaults)
 		handlers.GlobalConfig.RegisterRoutes(adminGroup)
+
+		// Features (route gates, blog comments/rss toggles)
+		handlers.Features.RegisterRoutes(adminGroup)
 
 		// User management (requires users:manage via RBAC)
 		adminUsers := adminGroup.Group("/users")

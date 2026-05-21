@@ -34,6 +34,7 @@ import (
 	tagHandler "blotting-consultancy/internal/handler/tag"
 	bootstrapHandler "blotting-consultancy/internal/handler/bootstrap"
 	emailSettingsHandler "blotting-consultancy/internal/handler/email_settings"
+	featuresHandler "blotting-consultancy/internal/handler/features"
 	globalConfigHandler "blotting-consultancy/internal/handler/global_config"
 	installedThemeHandler "blotting-consultancy/internal/handler/installed_theme"
 	marketplaceHandler "blotting-consultancy/internal/handler/marketplace"
@@ -381,6 +382,7 @@ func main() {
 	installedThemeHandlerInst := installedThemeHandler.NewHandler(installedThemeRepo, themePageService)
 	bootstrapHandlerInst := bootstrapHandler.NewHandler(contentDocRepo, installedThemeRepo, pageRepo, siteConfigRepo, publicCache)
 	globalConfigHandlerInst := globalConfigHandler.NewHandler(contentDocRepo, publicCache)
+	featuresHandlerInst := featuresHandler.NewHandler(siteConfigRepo, publicCache)
 	emailSvc := service.NewEmailService(siteConfigRepo)
 	emailSettingsHandlerInst := emailSettingsHandler.NewHandler(siteConfigRepo, emailSvc)
 	userHandlerInst := userHandler.NewHandler(userRepo)
@@ -447,6 +449,7 @@ func main() {
 		Theme:          themeHandlerInst,
 		InstalledTheme: installedThemeHandlerInst,
 		EmailSettings:  emailSettingsHandlerInst,
+		Features:       featuresHandlerInst,
 		GlobalConfig:   globalConfigHandlerInst,
 		User:           userHandlerInst,
 		SEO:            seoHandlerInst,
