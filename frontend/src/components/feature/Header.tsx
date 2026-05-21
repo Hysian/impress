@@ -5,6 +5,7 @@ import { useGlobalConfig } from '@/contexts/GlobalConfigContext';
 import { useThemePages } from '@/contexts/ThemePagesContext';
 import { resolveLocale } from '@/utils/locale';
 import { useBranding } from '@/hooks/useBranding';
+import { useLocaleMode } from '@/hooks/useLocaleMode';
 
 interface NavItem {
   label?: string;
@@ -18,6 +19,7 @@ export default function Header() {
 
   const { config: globalConfig } = useGlobalConfig();
   const branding = useBranding();
+  const { isMono, currentLocale } = useLocaleMode();
   const { headerNavItems, menuNavItems } = useThemePages();
   // Priority: primary menu > theme pages > global config
   const navigation: NavItem[] = menuNavItems.length > 0
@@ -36,6 +38,12 @@ export default function Header() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    if (isMono && i18n.language !== currentLocale) {
+      i18n.changeLanguage(currentLocale);
+    }
+  }, [isMono, currentLocale, i18n]);
+
   const toggleLanguage = () => {
     const newLang = resolveLocale(i18n.language) === 'zh' ? 'en' : 'zh';
     i18n.changeLanguage(newLang);
@@ -48,16 +56,18 @@ export default function Header() {
       }`}
     >
       {/* Top Language Bar */}
-      <div className="bg-primary text-white py-2">
-        <div className="max-w-layout mx-auto px-4 md:px-6 flex justify-end items-center">
-          <button
-            onClick={toggleLanguage}
-            className="text-sm hover:opacity-80 transition-opacity whitespace-nowrap cursor-pointer"
-          >
-            {resolveLocale(i18n.language) === 'zh' ? 'English' : '中文'}
-          </button>
+      {!isMono && (
+        <div className="bg-primary text-white py-2">
+          <div className="max-w-layout mx-auto px-4 md:px-6 flex justify-end items-center">
+            <button
+              onClick={toggleLanguage}
+              className="text-sm hover:opacity-80 transition-opacity whitespace-nowrap cursor-pointer"
+            >
+              {resolveLocale(i18n.language) === 'zh' ? 'English' : '中文'}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Main Navigation */}
       <nav className="py-8">
