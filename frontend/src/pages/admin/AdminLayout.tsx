@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Outlet, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useBranding } from "@/hooks/useBranding";
 import AdminSidebar from "./components/AdminSidebar";
 
 // Map admin route prefixes to permission keys
@@ -30,6 +31,7 @@ export default function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAuthenticated, isLoading, logout, hasPermission } = useAuth();
+  const branding = useBranding();
 
   const [collapsed, setCollapsed] = useState(() =>
     localStorage.getItem("admin_sidebar_collapsed") === "true"
@@ -109,7 +111,7 @@ export default function AdminLayout() {
               </svg>
             </button>
             <span className="text-sm font-medium text-gray-600 hidden sm:block">
-              印迹官网 - 管理后台
+              {branding.siteName} - 管理后台
             </span>
           </div>
 
