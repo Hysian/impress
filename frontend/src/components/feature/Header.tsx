@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useGlobalConfig } from '@/contexts/GlobalConfigContext';
 import { useThemePages } from '@/contexts/ThemePagesContext';
 import { resolveLocale } from '@/utils/locale';
+import { useBranding } from '@/hooks/useBranding';
 
 interface NavItem {
   label?: string;
@@ -16,6 +17,7 @@ export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const { config: globalConfig } = useGlobalConfig();
+  const branding = useBranding();
   const { headerNavItems, menuNavItems } = useThemePages();
   // Priority: primary menu > theme pages > global config
   const navigation: NavItem[] = menuNavItems.length > 0
@@ -23,8 +25,8 @@ export default function Header() {
     : headerNavItems.length > 0
       ? headerNavItems.map((item) => ({ label: item.label, href: item.path }))
       : (globalConfig.nav?.items || []);
-  const logoSrc = globalConfig.branding?.logo?.url || '/images/logo.png';
-  const logoAlt = globalConfig.branding?.companyName || 'Blotting Consultancy';
+  const logoSrc = branding.logo.light || '/images/logo.png';
+  const logoAlt = branding.siteName || 'Site';
 
   useEffect(() => {
     const handleScroll = () => {
