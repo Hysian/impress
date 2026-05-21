@@ -9,7 +9,7 @@ import (
 	"github.com/pressly/goose/v3"
 	_ "github.com/mattn/go-sqlite3"
 
-	_ "blotting-consultancy/internal/db/migrations"
+	"blotting-consultancy/internal/db/migrations"
 )
 
 func TestMigrationUnifiedPages(t *testing.T) {
@@ -32,6 +32,7 @@ func TestMigrationUnifiedPages(t *testing.T) {
 	if err := goose.SetDialect("sqlite3"); err != nil {
 		t.Fatalf("set dialect: %v", err)
 	}
+	migrations.Dialect = "sqlite3"
 
 	// Create goose version table
 	if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS goose_db_version (

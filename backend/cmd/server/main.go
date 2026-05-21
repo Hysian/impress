@@ -207,6 +207,7 @@ func main() {
 			log.Error("Failed to set goose dialect", "error", err)
 			os.Exit(1)
 		}
+		migrations.Dialect = dialect
 		if err := goose.Up(sqlDB, "."); err != nil {
 			log.Error("Failed to run goose migrations", "error", err)
 			os.Exit(1)

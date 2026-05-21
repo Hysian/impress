@@ -40,6 +40,11 @@ var pageKeyNames = map[string][2]string{
 }
 
 func upUnifiedPages(ctx context.Context, tx *sql.Tx) error {
+	if Dialect != "sqlite3" {
+		log.Println("Migration 00008_unified_pages: skipping (non-SQLite dialect, no legacy data to migrate)")
+		return nil
+	}
+
 	// Check if old tables exist (fresh DB won't have them)
 	if !tableExists(ctx, tx, "content_documents") {
 		log.Println("Migration 00008_unified_pages: no old tables found (fresh DB), skipping data migration")
@@ -83,6 +88,11 @@ func tableExists(ctx context.Context, tx *sql.Tx, name string) bool {
 }
 
 func downUnifiedPages(ctx context.Context, tx *sql.Tx) error {
+	if Dialect != "sqlite3" {
+		log.Println("Migration 00008_unified_pages: skipping down (non-SQLite dialect)")
+		return nil
+	}
+
 	// Delete migrated data from new tables; old tables remain intact
 	for _, table := range []string{"page_versions", "unified_pages", "page_templates", "site_configs"} {
 		if _, err := tx.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s", table)); err != nil {

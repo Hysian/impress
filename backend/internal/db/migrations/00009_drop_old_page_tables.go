@@ -3,6 +3,7 @@ package migrations
 import (
 	"context"
 	"database/sql"
+	"log"
 
 	"github.com/pressly/goose/v3"
 )
@@ -17,11 +18,19 @@ func init() {
 // A future migration should drop those once those subsystems are ported to the
 // unified page model.
 func upDropOldPageTables(ctx context.Context, tx *sql.Tx) error {
+	if Dialect != "sqlite3" {
+		log.Println("Migration 00009_drop_old_page_tables: skipping (non-SQLite dialect, no legacy tables to drop)")
+		return nil
+	}
 	_, err := tx.ExecContext(ctx, "DROP TABLE IF EXISTS content_versions")
 	return err
 }
 
 func downDropOldPageTables(ctx context.Context, tx *sql.Tx) error {
+	if Dialect != "sqlite3" {
+		log.Println("Migration 00009_drop_old_page_tables: skipping down (non-SQLite dialect)")
+		return nil
+	}
 	_, err := tx.ExecContext(ctx, `
 		CREATE TABLE IF NOT EXISTS content_versions (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
