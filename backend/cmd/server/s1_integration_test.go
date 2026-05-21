@@ -183,8 +183,8 @@ func validGlobalConfigPayload(expectedDraftVersion int) map[string]interface{} {
 	return map[string]interface{}{
 		"draftConfig": map[string]interface{}{
 			"identity": map[string]interface{}{
-				"name":          map[string]string{"zh": "印迹咨询", "en": "Blotting Consultancy"},
-				"tagline":       map[string]string{"zh": "留下印迹", "en": "Leave a Mark"},
+				"name":          map[string]string{"zh": "测试站点", "en": "Test Site"},
+				"tagline":       map[string]string{"zh": "留下足迹", "en": "Leave a Mark"},
 				"localeMode":    "bilingual",
 				"defaultLocale": "zh",
 			},
@@ -195,7 +195,7 @@ func validGlobalConfigPayload(expectedDraftVersion int) map[string]interface{} {
 				"primaryColor": "#1a5f8f",
 			},
 			"author": map[string]interface{}{
-				"name":    "印迹团队",
+				"name":    "测试团队",
 				"socials": []interface{}{},
 			},
 			"footer": map[string]interface{}{},
@@ -290,8 +290,8 @@ func TestS1_GlobalConfig_PublishRoundTrip(t *testing.T) {
 	require.True(t, ok, "globalConfig.config.identity.name must be an object (bilingual)")
 
 	// The bilingual structure must be preserved — both locales present.
-	assert.Equal(t, "印迹咨询", name["zh"], "identity.name.zh should match what was written")
-	assert.Equal(t, "Blotting Consultancy", name["en"], "identity.name.en should be present (bilingual not flattened)")
+	assert.Equal(t, "测试站点", name["zh"], "identity.name.zh should match what was written")
+	assert.Equal(t, "Test Site", name["en"], "identity.name.en should be present (bilingual not flattened)")
 }
 
 // ─── Test 2 ────────────────────────────────────────────────────────────────
