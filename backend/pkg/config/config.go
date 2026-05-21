@@ -20,7 +20,7 @@ type Config struct {
 	FrontendDir        string
 }
 
-const defaultSQLiteDSN = "file:./data/blotting.db?cache=shared&mode=rwc"
+const defaultSQLiteDSN = "file:./data/impress.db?cache=shared&mode=rwc"
 
 // Load reads configuration from environment variables with validation and defaults
 func Load() (*Config, error) {
