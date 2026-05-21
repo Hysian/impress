@@ -7,6 +7,11 @@ import {
 } from "@/api/publicContent";
 import { useBootstrap } from "@/contexts/BootstrapContext";
 import { resolveLocale } from "@/utils/locale";
+import type {
+  SiteConfigGlobal,
+  SiteConfigFeatures,
+} from "@/types/siteConfig";
+import { SITE_CONFIG_GLOBAL_DEFAULT, SITE_CONFIG_FEATURES_DEFAULT } from "@/types/siteConfig";
 
 interface MediaRef {
   url?: string;
@@ -24,20 +29,16 @@ interface LinkItem {
 }
 
 export interface GlobalConfig {
-  branding?: {
-    logo?: MediaRef;
-    companyName?: string;
-  };
-  nav?: {
-    items?: NavItem[];
-  };
-  footer?: {
-    address?: string;
-    phone?: string;
-    links?: LinkItem[];
-    copyright?: string;
-  };
+  // legacy fields (kept while we transition)
+  branding?: { logo?: MediaRef; companyName?: string };
+  nav?: { items?: NavItem[] };
+  footer?: { address?: string; phone?: string; links?: LinkItem[]; copyright?: string };
+  // new typed shape — present when published config has an "identity" key
+  siteConfig?: SiteConfigGlobal;
 }
+
+// Re-export to silence unused-import warnings from the type imports above.
+export type { SiteConfigGlobal, SiteConfigFeatures };
 
 interface GlobalConfigContextValue {
   config: GlobalConfig;
@@ -73,8 +74,12 @@ export function GlobalConfigProvider({ children }: { children: ReactNode }) {
       const normalized = normalizeConfigForLocale(
         globalData.config as Record<string, unknown>,
         locale
-      );
-      setConfig(normalized as GlobalConfig);
+      ) as GlobalConfig;
+      // If the published config matches the new schema, expose it typed as siteConfig.
+      if (normalized && typeof normalized === "object" && "identity" in normalized) {
+        normalized.siteConfig = normalized as unknown as SiteConfigGlobal;
+      }
+      setConfig(normalized);
     }
     setLoading(false);
   }, [bootstrapData, bootstrapLoading, locale]);
@@ -83,8 +88,12 @@ export function GlobalConfigProvider({ children }: { children: ReactNode }) {
   const doFetch = useCallback(async () => {
     try {
       const data = await fetchPublicContent("global", locale);
-      const normalized = normalizeConfigForLocale(data.config, locale);
-      setConfig(normalized as GlobalConfig);
+      const normalized = normalizeConfigForLocale(data.config, locale) as GlobalConfig;
+      // If the published config matches the new schema, expose it typed as siteConfig.
+      if (normalized && typeof normalized === "object" && "identity" in normalized) {
+        normalized.siteConfig = normalized as unknown as SiteConfigGlobal;
+      }
+      setConfig(normalized);
     } catch {
       // Keep previous config on error
     } finally {
@@ -103,3 +112,5 @@ export function GlobalConfigProvider({ children }: { children: ReactNode }) {
 export function useGlobalConfig(): GlobalConfigContextValue {
   return useContext(GlobalConfigContext);
 }
+
+export { SITE_CONFIG_GLOBAL_DEFAULT, SITE_CONFIG_FEATURES_DEFAULT };
