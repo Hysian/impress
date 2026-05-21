@@ -18,6 +18,7 @@ import (
 	categoryHandler "blotting-consultancy/internal/handler/category"
 	chunkedUploadHandler "blotting-consultancy/internal/handler/chunked_upload"
 	emailSettingsHandler "blotting-consultancy/internal/handler/email_settings"
+	globalConfigHandler "blotting-consultancy/internal/handler/global_config"
 	installedThemeHandler "blotting-consultancy/internal/handler/installed_theme"
 	marketplaceHandler "blotting-consultancy/internal/handler/marketplace"
 	mediaHandler "blotting-consultancy/internal/handler/media"
@@ -71,6 +72,7 @@ type Handlers struct {
 	Theme           *themeHandler.Handler
 	InstalledTheme  *installedThemeHandler.Handler
 	EmailSettings   *emailSettingsHandler.Handler
+	GlobalConfig    *globalConfigHandler.Handler
 	User            *userHandler.Handler
 	SEO             *seoHandler.Handler
 	Search          *searchhandler.Handler
@@ -338,6 +340,9 @@ func registerRoutes(router *gin.Engine, handlers *Handlers, deps *RouteDeps) {
 		adminGroup.GET("/email-settings", handlers.EmailSettings.HandleGet)
 		adminGroup.PUT("/email-settings", handlers.EmailSettings.HandleUpdate)
 		adminGroup.POST("/email-settings/test", handlers.EmailSettings.HandleTest)
+
+		// Global config (branding / identity / SEO defaults)
+		handlers.GlobalConfig.RegisterRoutes(adminGroup)
 
 		// User management (requires users:manage via RBAC)
 		adminUsers := adminGroup.Group("/users")
