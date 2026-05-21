@@ -21,7 +21,7 @@ interface QuickAction {
 }
 
 export default function AdminDashboardPage() {
-  useDocumentTitle("仪表盘", "印迹后台");
+  useDocumentTitle("仪表盘");
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     todayVisits: 0,

@@ -21,7 +21,7 @@ export default function DynamicPage({ slug: slugProp }: DynamicPageProps = {}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [title, setTitle] = useState<string>("");
-  useDocumentTitle(title, "印迹法规咨询");
+  useDocumentTitle(title);
 
   useEffect(() => {
     if (!slug) {

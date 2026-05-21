@@ -14,7 +14,7 @@ const PAGE_KEY_LABELS: Record<string, string> = {
 };
 
 export default function AdminAnalyticsPage() {
-  useDocumentTitle("访问统计", "印迹后台");
+  useDocumentTitle("访问统计");
   const [data, setData] = useState<AnalyticsSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

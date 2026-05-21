@@ -423,7 +423,7 @@ function JobsTable() {
 
 // ---- Main Page ----
 export default function AdminMigrationPage() {
-  useDocumentTitle("数据迁移", "印迹后台");
+  useDocumentTitle("数据迁移");
   const [refreshKey, setRefreshKey] = useState(0);
 
   const handleJobCreated = () => {

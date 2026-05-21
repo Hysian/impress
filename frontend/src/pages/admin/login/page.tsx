@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function LoginPage() {
-  useDocumentTitle("登录", "印迹后台");
+  useDocumentTitle("登录");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");

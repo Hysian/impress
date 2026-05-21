@@ -477,7 +477,7 @@ const DEFAULT_FORM: FormData = {
 };
 
 export default function AdminWizardPage() {
-  useDocumentTitle("建站向导", "印迹后台");
+  useDocumentTitle("建站向导");
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<FormData>(DEFAULT_FORM);
   const [plan, setPlan] = useState<WizardPlan | null>(null);

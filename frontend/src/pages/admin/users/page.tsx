@@ -40,7 +40,7 @@ const emptyForm: UserFormData = {
 };
 
 export default function AdminUsersPage() {
-  useDocumentTitle("用户管理", "印迹后台");
+  useDocumentTitle("用户管理");
   const [users, setUsers] = useState<UserDTO[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);

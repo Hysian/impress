@@ -67,7 +67,7 @@ async function deleteComment(id: number): Promise<void> {
 }
 
 export default function AdminCommentsPage() {
-  useDocumentTitle("评论管理", "印迹后台");
+  useDocumentTitle("评论管理");
   const [data, setData] = useState<AdminCommentListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

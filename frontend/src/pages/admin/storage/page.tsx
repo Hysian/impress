@@ -37,7 +37,7 @@ const STRATEGIES = [
 ];
 
 export default function AdminStoragePage() {
-  useDocumentTitle("存储配置", "印迹后台");
+  useDocumentTitle("存储配置");
   const [config, setConfig] = useState<StorageConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");

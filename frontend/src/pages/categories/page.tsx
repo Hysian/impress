@@ -8,7 +8,7 @@ import PageHero from "@/components/feature/PageHero";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function CategoriesPage() {
-  useDocumentTitle("分类", "印迹法规咨询");
+  useDocumentTitle("分类");
   const { t } = useTranslation();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);

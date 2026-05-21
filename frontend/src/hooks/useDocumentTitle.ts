@@ -1,16 +1,18 @@
 import { useEffect } from "react";
+import { useSEODefaults } from "./useSEODefaults";
 
 /**
- * Sets document.title while the component is mounted.
+ * Sets document.title to `buildTitle(title)` for the lifetime of the component.
  * Restores the previous title on unmount.
  */
-export function useDocumentTitle(title: string | undefined | null, suffix?: string) {
+export function useDocumentTitle(title: string | undefined | null) {
+  const { buildTitle } = useSEODefaults();
   useEffect(() => {
     if (!title) return;
     const prev = document.title;
-    document.title = suffix ? `${title} | ${suffix}` : title;
+    document.title = buildTitle(title);
     return () => {
       document.title = prev;
     };
-  }, [title, suffix]);
+  }, [title, buildTitle]);
 }

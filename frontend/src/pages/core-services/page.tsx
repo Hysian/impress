@@ -75,7 +75,7 @@ function ServiceBlockText({
 }
 
 export default function CoreServicesPage() {
-  useDocumentTitle("核心服务", "印迹法规咨询");
+  useDocumentTitle("核心服务");
   const { i18n } = useTranslation('common');
   const locale = resolveLocale(i18n.language);
 

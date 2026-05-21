@@ -30,7 +30,7 @@ import ArticleForm from "./ArticleForm";
 import { SeoFieldsPanel, AdvancedSettingsPanel, PopoverButton } from "./SeoFields";
 
 export default function ArticleEditorPage() {
-  useDocumentTitle("编辑文章", "印迹后台");
+  useDocumentTitle("编辑文章");
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const isEditing = !!id;

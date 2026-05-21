@@ -27,7 +27,7 @@ interface CasesPageConfig {
 }
 
 export default function CasesPage() {
-  useDocumentTitle("成功案例", "印迹法规咨询");
+  useDocumentTitle("成功案例");
   const { i18n } = useTranslation('common');
   const locale = resolveLocale(i18n.language);
 

@@ -388,7 +388,7 @@ function SiteImportTab() {
 
 // ---- Main Page ----
 export default function AdminBackupsPage() {
-  useDocumentTitle("数据备份", "印迹后台");
+  useDocumentTitle("数据备份");
   const [activeTab, setActiveTab] = useState<TabKey>("db");
 
   return (

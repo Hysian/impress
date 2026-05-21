@@ -21,7 +21,7 @@ import MenuItemForm from "./MenuItemForm";
 // ── Main component ──
 
 export default function MenusPage() {
-  useDocumentTitle("菜单管理", "印迹后台");
+  useDocumentTitle("菜单管理");
   // -- Group state --
   const [groups, setGroups] = useState<MenuGroup[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);

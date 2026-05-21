@@ -61,7 +61,7 @@ interface HomePageConfig {
 }
 
 export default function HomePage() {
-  useDocumentTitle("首页", "印迹法规咨询");
+  useDocumentTitle("首页");
   const { i18n } = useTranslation('common');
   const locale = resolveLocale(i18n.language);
   const isZh = locale === 'zh';

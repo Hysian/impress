@@ -38,7 +38,7 @@ interface ContactPageConfig {
 }
 
 export default function ContactPage() {
-  useDocumentTitle("联系我们", "印迹法规咨询");
+  useDocumentTitle("联系我们");
   const { i18n } = useTranslation('common');
   const locale = resolveLocale(i18n.language);
 

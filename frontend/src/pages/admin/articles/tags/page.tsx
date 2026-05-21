@@ -6,7 +6,7 @@ import MetadataEditor from "@/components/admin/MetadataEditor";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function TagsPage() {
-  useDocumentTitle("标签管理", "印迹后台");
+  useDocumentTitle("标签管理");
   const navigate = useNavigate();
 
   const [tags, setTags] = useState<Tag[]>([]);

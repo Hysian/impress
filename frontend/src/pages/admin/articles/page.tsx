@@ -5,7 +5,7 @@ import type { Article } from "@/api/articles";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function AdminArticlesPage() {
-  useDocumentTitle("文章管理", "印迹后台");
+  useDocumentTitle("文章管理");
   const navigate = useNavigate();
 
   const [articles, setArticles] = useState<Article[]>([]);

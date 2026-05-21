@@ -6,7 +6,7 @@ import RecropModal from "@/components/admin/RecropModal";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function MediaPage() {
-  useDocumentTitle("媒体管理", "印迹后台");
+  useDocumentTitle("媒体管理");
   const [items, setItems] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

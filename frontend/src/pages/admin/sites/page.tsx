@@ -47,7 +47,7 @@ const STATUSES = [
 ];
 
 export default function AdminSitesPage() {
-  useDocumentTitle("站点管理", "印迹后台");
+  useDocumentTitle("站点管理");
   const [sites, setSites] = useState<SiteDTO[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);

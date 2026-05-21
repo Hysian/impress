@@ -20,7 +20,7 @@ function sanitizeSnippet(html: string): string {
 }
 
 export default function SearchPage() {
-  useDocumentTitle("搜索", "印迹法规咨询");
+  useDocumentTitle("搜索");
   const [searchParams] = useSearchParams();
   const query = searchParams.get("q") ?? "";
   const page = Number(searchParams.get("page") ?? "1");

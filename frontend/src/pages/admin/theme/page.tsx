@@ -29,7 +29,7 @@ const colorFields: ColorField[] = [
 ];
 
 export default function AdminThemePage() {
-  useDocumentTitle("主题管理", "印迹后台");
+  useDocumentTitle("主题管理");
   const [activeTab, setActiveTab] = useState<TabId>("customize");
   const [showThemeModal, setShowThemeModal] = useState(false);
   const { activeTheme } = useThemeManager();

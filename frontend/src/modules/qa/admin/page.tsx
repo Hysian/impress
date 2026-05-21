@@ -38,7 +38,7 @@ function RatingBadge({ rating }: { rating: string }) {
 }
 
 export default function AdminQAPage() {
-  useDocumentTitle("知识问答", "印迹后台");
+  useDocumentTitle("知识问答");
   const [data, setData] = useState<QALogsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -8,7 +8,7 @@ import PageHero from "@/components/feature/PageHero";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function TagsPage() {
-  useDocumentTitle("标签", "印迹法规咨询");
+  useDocumentTitle("标签");
   const { t } = useTranslation();
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);

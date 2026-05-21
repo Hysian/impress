@@ -35,7 +35,7 @@ function flattenAll(cats: Category[]): Category[] {
 }
 
 export default function CategoriesPage() {
-  useDocumentTitle("分类管理", "印迹后台");
+  useDocumentTitle("分类管理");
   const navigate = useNavigate();
 
   const [categories, setCategories] = useState<Category[]>([]);

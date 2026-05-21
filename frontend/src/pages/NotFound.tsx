@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function NotFoundPage() {
-  useDocumentTitle("页面未找到", "印迹法规咨询");
+  useDocumentTitle("页面未找到");
   const { t } = useTranslation();
   const navigate = useNavigate();
 

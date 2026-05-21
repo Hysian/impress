@@ -32,7 +32,7 @@ interface ExpertsPageConfig {
 }
 
 export default function ExpertsPage() {
-  useDocumentTitle("专家团队", "印迹法规咨询");
+  useDocumentTitle("专家团队");
   const { i18n } = useTranslation('common');
   const locale = resolveLocale(i18n.language);
 

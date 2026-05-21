@@ -78,7 +78,7 @@ function AdvantageBlockText({
 }
 
 export default function AdvantagesPage() {
-  useDocumentTitle("核心优势", "印迹法规咨询");
+  useDocumentTitle("核心优势");
   const { i18n } = useTranslation('common');
   const locale = resolveLocale(i18n.language);
 

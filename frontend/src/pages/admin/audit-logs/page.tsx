@@ -38,7 +38,7 @@ function formatDetailsSummary(details: string): string {
 }
 
 export default function AdminAuditLogsPage() {
-  useDocumentTitle("审计日志", "印迹后台");
+  useDocumentTitle("审计日志");
   const [data, setData] = useState<AuditLogListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
