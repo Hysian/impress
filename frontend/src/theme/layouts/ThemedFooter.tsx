@@ -1,5 +1,6 @@
 import { useGlobalConfig } from "@/contexts/GlobalConfigContext";
 import { useThemePages } from "@/contexts/ThemePagesContext";
+import { useBranding } from "@/hooks/useBranding";
 import type { FooterConfig } from "./types";
 
 interface ThemedFooterProps {
@@ -9,19 +10,20 @@ interface ThemedFooterProps {
 export default function ThemedFooter({ config }: ThemedFooterProps) {
   const { config: globalConfig } = useGlobalConfig();
   const { footerNavItems } = useThemePages();
+  const branding = useBranding();
   const globalFooter = globalConfig.footer || {};
 
   // Config prop overrides global config; CMS uses branding.logo.url + footer.links
   const style = config?.style ?? "full";
-  const logoSrc = config?.logo ?? globalConfig.branding?.logo?.url ?? "/images/logo.png";
-  const logoAlt = globalConfig.branding?.companyName || "Blotting Consultancy";
+  const logoSrc = config?.logo ?? branding.logo.light ?? "/images/logo.png";
+  const logoAlt = branding.siteName || "Site";
   const address = config?.address ?? globalFooter.address;
   const phone = config?.phone ?? globalFooter.phone;
   // Use theme page nav items for footer links, fallback to global config
   const links = footerNavItems.length > 0
     ? footerNavItems.map((item) => ({ label: item.label, href: item.path }))
     : (globalFooter.links ?? []);
-  const copyright = config?.copyright ?? globalFooter.copyright ?? "\u00A9 2024 Blotting Consultancy";
+  const copyright = config?.copyright ?? globalFooter.copyright ?? branding.footer.copyright;
 
   if (style === "none") {
     return null;
@@ -127,17 +129,10 @@ export default function ThemedFooter({ config }: ThemedFooterProps) {
 
         {/* Copyright */}
         <div className="mt-12 pt-8 border-t border-white/20 text-center">
-          <p className="text-sm text-gray-300">
-            {copyright} |{" "}
-            <a
-              href="https://readdy.ai/?ref=logo"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-accent transition-colors cursor-pointer"
-            >
-              Website Builder
-            </a>
-          </p>
+          <p className="text-sm text-gray-300">{copyright}</p>
+          {branding.footer.icp && (
+            <p className="text-xs text-gray-400 mt-1">{branding.footer.icp}</p>
+          )}
         </div>
       </div>
     </footer>
