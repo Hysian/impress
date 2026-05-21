@@ -470,11 +470,12 @@ func main() {
 		ThemeExport:    themeExportHdl,
 	}
 	routeDeps := &RouteDeps{
-		UserRepo:  userRepo,
-		RBACCache: rbacCache,
-		Cfg:       cfg,
-		Database:  database,
-		ModuleMgr: mgr,
+		UserRepo:       userRepo,
+		RBACCache:      rbacCache,
+		Cfg:            cfg,
+		Database:       database,
+		ModuleMgr:      mgr,
+		ContentDocRepo: contentDocRepo,
 	}
 	registerRoutes(router, handlers, routeDeps)
 
@@ -528,7 +529,7 @@ func main() {
 
 // serveSPAWithMeta renders index.html with SEO meta tags. Returns true if served
 // successfully, false if caller should fall back to static file serving.
-func serveSPAWithMeta(c *gin.Context, renderer *seo.Renderer, baseURL string) bool {
+func serveSPAWithMeta(c *gin.Context, renderer *seo.Renderer, baseURL string, contentDocRepo repository.ContentDocumentRepository) bool {
 	if renderer == nil {
 		return false
 	}
@@ -537,6 +538,11 @@ func serveSPAWithMeta(c *gin.Context, renderer *seo.Renderer, baseURL string) bo
 		locale = "zh"
 	}
 	meta := seo.ResolveFromPath(c.Request.URL.Path, baseURL, locale)
+	if contentDocRepo != nil {
+		if doc, err := contentDocRepo.FindByPageKey(c.Request.Context(), model.PageKeyGlobal); err == nil && doc != nil {
+			meta.ApplyGlobal(map[string]any(doc.PublishedConfig), locale)
+		}
+	}
 	html, err := renderer.Render(meta)
 	if err != nil {
 		return false

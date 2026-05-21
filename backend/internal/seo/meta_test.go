@@ -30,3 +30,24 @@ func TestPageMetaWithOverrides(t *testing.T) {
 		t.Errorf("expected custom title, got %q", meta.Title)
 	}
 }
+
+func TestApplyGlobal_OverlaysTitleAndOG(t *testing.T) {
+	pm := seo.DefaultPageMeta()
+	pm.ApplyGlobal(map[string]any{
+		"identity": map[string]any{
+			"name":       map[string]any{"zh": "我的博客"},
+			"localeMode": "mono-zh",
+		},
+		"seo":   map[string]any{},
+		"brand": map[string]any{"ogImage": "https://x.test/og.png"},
+	}, "zh")
+	if pm.Title != "我的博客" {
+		t.Errorf("Title: got %q want 我的博客", pm.Title)
+	}
+	if pm.OgImage != "https://x.test/og.png" {
+		t.Errorf("OgImage: got %q", pm.OgImage)
+	}
+	if pm.Locale != "zh" {
+		t.Errorf("Locale: got %q", pm.Locale)
+	}
+}

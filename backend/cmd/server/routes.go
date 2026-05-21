@@ -96,11 +96,12 @@ type Handlers struct {
 
 // RouteDeps holds dependencies needed by route middleware.
 type RouteDeps struct {
-	UserRepo  repository.UserRepository
-	RBACCache *cache.Cache
-	Cfg       *config.Config
-	Database  *db.DB
-	ModuleMgr *module.Manager
+	UserRepo       repository.UserRepository
+	RBACCache      *cache.Cache
+	Cfg            *config.Config
+	Database       *db.DB
+	ModuleMgr      *module.Manager
+	ContentDocRepo repository.ContentDocumentRepository
 }
 
 // registerRoutes sets up all route groups, middleware, and endpoint registrations
@@ -251,7 +252,7 @@ func registerRoutes(router *gin.Engine, handlers *Handlers, deps *RouteDeps) {
 		adminGroup.Use(func(c *gin.Context) {
 			accept := c.GetHeader("Accept")
 			if c.Request.Method == "GET" && strings.Contains(accept, "text/html") {
-				if !serveSPAWithMeta(c, seoRenderer, cfg.BaseURL) {
+				if !serveSPAWithMeta(c, seoRenderer, cfg.BaseURL, deps.ContentDocRepo) {
 					c.File(indexPath)
 					c.Abort()
 				}
@@ -504,7 +505,7 @@ func registerRoutes(router *gin.Engine, handlers *Handlers, deps *RouteDeps) {
 				path != "/metrics" &&
 				path != "/sitemap.xml" &&
 				path != "/robots.txt" {
-				if !serveSPAWithMeta(c, seoRenderer, cfg.BaseURL) {
+				if !serveSPAWithMeta(c, seoRenderer, cfg.BaseURL, deps.ContentDocRepo) {
 					http.ServeFile(c.Writer, c.Request, indexHTML)
 					c.Abort()
 				}

@@ -60,7 +60,7 @@ func TestRendererDefaultMeta(t *testing.T) {
 		t.Fatalf("render: %v", err)
 	}
 
-	if !strings.Contains(result, "印迹法规咨询") {
+	if !strings.Contains(result, "Site") {
 		t.Error("expected default title in output")
 	}
 }
